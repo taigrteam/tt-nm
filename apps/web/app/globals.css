@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+/* Phantom design tokens — taigrteam */
+:root {
+  --bg:         #F0F6F7;
+  --text:       #05100E;
+  --text-muted: rgba(5, 16, 14, 0.65);
+  --border-col: #05100E;
+  --accent:     #EC6D26;
+  --accent-fg:  #F0F6F7;
+  --accent2:    #0D8C80;
+  --shadow-col: #EC6D26;
+  --input-bg:   #F0F6F7;
+  --card-bg:    #F0F6F7;
+  --code-bg:    #E4EDEF;
+  --error:      #C0392B;
+  --success:    #2D9E72;
+  --row-hover:  rgba(236, 109, 38, 0.06);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-roboto), Roboto, sans-serif;
+}

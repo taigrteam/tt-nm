@@ -1,0 +1,7 @@
+FROM postgis/postgis:17-3.5
+
+# Install pgRouting — must be installed on the system before the extension
+# can be created inside PostgreSQL.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-17-pgrouting \
+    && rm -rf /var/lib/apt/lists/*

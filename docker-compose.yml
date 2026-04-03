@@ -1,0 +1,44 @@
+services:
+
+  db:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.db
+    container_name: tt-db
+    environment:
+      POSTGRES_DB: ttdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: devpassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./packages/db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"   # host access for psql / Drizzle in local dev
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ttdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  martin:
+    image: ghcr.io/maplibre/martin:latest
+    container_name: tt-martin
+    environment:
+      DATABASE_URL: postgresql://postgres:devpassword@db:5432/ttdb
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+    # NO ports mapping — Martin is internal only.
+    # docker-compose.override.yml exposes a localhost-only port for local dev.
+    # In production (AKS) this service is ClusterIP — never LoadBalancer or NodePort.
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:

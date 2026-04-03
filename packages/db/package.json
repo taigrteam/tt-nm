@@ -1,0 +1,6 @@
+{
+  "name": "@tt-nm/db",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Database schemas (iam + network_model), Martin SQL function sources, and seed data"
+}

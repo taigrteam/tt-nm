@@ -1,0 +1,15 @@
+# Development override — automatically merged by `docker compose up`.
+#
+# Exposes Martin on 127.0.0.1:3001 (localhost only) so the local Next.js dev
+# server can reach it via MARTIN_INTERNAL_URL=http://localhost:3001.
+#
+# This binding is localhost-only — not accessible on any network interface
+# outside this machine. It satisfies the security requirement for local dev.
+#
+# DO NOT replicate this in docker-compose.yml or any production manifest.
+# In AKS, Martin's Service must remain type ClusterIP with no external exposure.
+
+services:
+  martin:
+    ports:
+      - "127.0.0.1:3001:3000"

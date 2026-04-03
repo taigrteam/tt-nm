@@ -7,8 +7,8 @@ The solution utilizes a **Decoupled Spatial Stack** to ensure maximum performanc
 
 ### 1.1 Rationale for the Stack
 * **PostGIS:** The industry standard for spatial data. It handles the "Graph" logic by treating points as nodes and linestrings as edges.
-* **Martin (Rust):** A blazing-fast tile server that replaces GeoServer. It has a negligible memory footprint ($<500$MB) and supports modern vector tile features like WebGPU-optimized MVT.
-* **Fastify (Node.js):** A low-overhead framework chosen for its speed and its ability to act as a high-concurrency proxy between the frontend and the tile server.
+* **Martin (Rust):** A blazing-fast tile server that replaces GeoServer. It has a negligible memory footprint (<500MB) and serves standard Mapbox Vector Tiles (MVT). High-performance WebGPU rendering of those tiles is handled client-side by MapLibre GL JS.
+* **Next.js (v16+):** Serves as both the React frontend (App Router / RSC) and the secure tile proxy (Route Handlers). Replaces a separate Fastify service — Route Handlers on the Node.js runtime handle high-concurrency tile proxying with no meaningful performance penalty over a dedicated proxy.
 * **MapLibre GL JS v5:** Utilizes WebGPU for rendering massive datasets at 60fps, essential for interactive graph exploration and time-series animations.
 
 ---
@@ -25,15 +25,15 @@ We utilize **Just-In-Time (JIT) Provisioning** via OIDC (Google and Microsoft En
 
 ### 2.3 Attribute-Level Security
 * **Decision:** Security is enforced at the Database/Proxy level, not the Map client.
-* **Mechanism:** The Fastify proxy injects the `user_role` into Martin's request via query parameters. Martin passes these to PostGIS **Function Sources**, which return different data (redacted columns) based on the user's rights before the tile is ever encoded.
+* **Mechanism:** The Next.js Route Handler proxy injects the `user_role` into Martin's request via query parameters. The role is derived exclusively from the server-side Auth.js session — never from the client request. Martin passes these to PostGIS **Function Sources**, which return different data (redacted columns) based on the user's rights before the tile is ever encoded.
 
 ---
 
 ## 3. Implementation Instructions for Claude Sonnet
 
 ### 3.1 Workspace Setup
-1.  Initialize a **pnpm monorepo** with two main apps: `apps/api` (Fastify) and `apps/web` (MapLibre/React).
-2.  Create a shared package `packages/db` for schema definitions and migrations.
+1.  Initialize a **pnpm monorepo** with one app: `apps/web` (Next.js 16 — handles frontend, auth, and tile proxy).
+2.  Create a shared package `packages/db` for both schema definitions (`iam` and `network_model`) and Martin SQL function sources.
 3.  Use **Docker Engine** (native on WSL2) to run Postgres 17 and Martin.
 
 ### 3.2 Database Implementation
@@ -42,14 +42,17 @@ We utilize **Just-In-Time (JIT) Provisioning** via OIDC (Google and Microsoft En
 3.  Implement the **Function Source** pattern for Martin (Section 4.3). Martin should point to these functions rather than raw tables to ensure security.
 
 ### 3.3 Auth/Proxy Implementation
-1.  Use `openid-client` to handle the OIDC handshake.
-2.  Implement a Fastify `preHandler` hook that extracts the JWT, identifies the user, and fetches their permission slugs.
-3.  Implement a proxy route (`/tiles/*`) that forwards requests to Martin. It must append the user's role/ID to the internal query string.
+1.  Use **Auth.js v5** (`next-auth@beta`) for the OIDC handshake with Google and Microsoft Entra ID.
+2.  Implement `jwt` and `session` callbacks in `auth.ts` to look up the user's role from `iam.user_roles` and attach it to the session token (see Section 4.2).
+3.  Implement a tile proxy Route Handler at `app/api/tiles/[...path]/route.ts`. It must call `auth()` server-side, reject unauthenticated requests with `401`, and append the role exclusively from the session — never from the incoming client request.
 
 ### 3.4 Frontend Implementation
-1.  Configure MapLibre to use the Vector Tile source provided by the Proxy.
-2.  Implement "Feature State" for hover effects (Section 4.2) to ensure the GPU handles styling changes without re-downloading tiles.
-3.  Use the `description` field from the permissions table to generate dynamic tooltips or "Access Denied" overlays.
+1.  Initialise MapLibre with an **OpenStreetMap raster tile background** as the base layer (layer ID: `"osm-background"`). Network data layers sit on top of this. OSM attribution must remain visible at all times.
+2.  Configure the network vector tile source pointing at the Next.js tile proxy (`/api/tiles/...`). The browser session cookie is attached automatically — no `transformRequest` needed.
+3.  Implement "Feature State" for hover effects to ensure the GPU handles styling changes without re-downloading tiles.
+4.  Use the `description` field from the permissions table to generate dynamic tooltips or "Access Denied" overlays.
+
+**Note on OSM layer:** The `"osm-background"` layer ID must be stable from day one. Future requirements include toggling visibility and adjusting opacity/greyscale — these are not implemented yet but the layer ID must not change when they are added.
 
 ---
 
@@ -59,6 +62,9 @@ We utilize **Just-In-Time (JIT) Provisioning** via OIDC (Google and Microsoft En
 Refer to this schema for all JIT and RBAC logic.
 
 ```sql
+CREATE SCHEMA IF NOT EXISTS iam;
+SET search_path TO iam;
+
 -- Identity Management
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

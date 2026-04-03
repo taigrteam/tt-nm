@@ -54,6 +54,9 @@ Updates to the `object` table follow a "Terminate and Insert" pattern.
 
 ### Listing 5.1: Full Relational Schema
 ```sql
+CREATE SCHEMA IF NOT EXISTS network_model;
+SET search_path TO network_model;
+
 -- I. DATA DICTIONARY
 CREATE TABLE class_definition (
     class_uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -68,7 +71,7 @@ CREATE TABLE class_definition (
 );
 
 CREATE TABLE attribute_definition (
-    attr_uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    attr_uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     namespace TEXT NOT NULL,
     name TEXT NOT NULL, 
     data_type TEXT NOT NULL,
@@ -78,7 +81,7 @@ CREATE TABLE attribute_definition (
 );
 
 CREATE TABLE class_attribute_config (
-    config_uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    config_uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     class_uuid UUID NOT NULL REFERENCES class_definition(class_uuid),
     attr_uuid UUID NOT NULL REFERENCES attribute_definition(attr_uuid),
     is_required BOOLEAN DEFAULT FALSE,
@@ -103,7 +106,7 @@ CREATE TABLE view_definition (
 );
 
 CREATE TABLE view_column_spec (
-    column_uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    column_uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     view_uuid UUID NOT NULL REFERENCES view_definition(view_uuid),
     source_path TEXT NOT NULL,       
     alias TEXT NOT NULL,             
