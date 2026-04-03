@@ -101,8 +101,8 @@ CREATE TABLE object (
     identity     TEXT        NOT NULL,   -- Natural key within namespace
     class_uuid   UUID        NOT NULL REFERENCES class_definition(class_uuid),
     discriminator TEXT,                  -- Sub-type hint (e.g. 'PRIMARY', 'SECONDARY')
-    geo_geometry GEOMETRY,               -- Use ST_SetSRID(..., 4326) on insert
-    sch_geometry GEOMETRY,               -- Reserved — do not query
+    geo_geometry GEOMETRY(Geometry, 4326),  -- WGS84; mixed types (Point/LineString)
+    sch_geometry GEOMETRY(Geometry, 4326), -- Reserved — do not query
     attributes   JSONB       NOT NULL DEFAULT '{}',
     hash         TEXT,
     valid_from   TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -1,6 +1,7 @@
 export { auth as middleware } from "@/auth";
 
 export const config = {
-  // Protect all routes except Auth.js internals, static assets, and the sign-in page itself.
-  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico|signin).*)"],
+  // Only run middleware on page routes — not API routes or static assets.
+  // API routes (including /api/tiles) handle auth themselves and must return 401, not redirect.
+  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|signin).*)"],
 };
