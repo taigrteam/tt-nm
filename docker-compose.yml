@@ -25,8 +25,9 @@ services:
   martin:
     image: ghcr.io/maplibre/martin:latest
     container_name: tt-martin
-    environment:
-      DATABASE_URL: postgresql://postgres:devpassword@db:5432/ttdb
+    command: ["-c", "/config/martin-config.yaml"]
+    volumes:
+      - ./docker/martin-config.yaml:/config/martin-config.yaml:ro
     depends_on:
       db:
         condition: service_healthy

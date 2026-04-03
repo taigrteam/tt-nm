@@ -49,11 +49,12 @@ export default function NetworkMap() {
 
     map.on("load", () => {
       // Vector tile source from the authenticated tile proxy.
+      // Uses the network_objects function source (RBAC-aware).
       // The browser sends the session cookie automatically (same origin).
       map.addSource("network", {
         type: "vector",
         tiles: [
-          `${window.location.origin}/api/tiles/object/{z}/{x}/{y}`,
+          `${window.location.origin}/api/tiles/network_objects/{z}/{x}/{y}`,
         ],
         minzoom: 0,
         maxzoom: 22,
@@ -64,7 +65,7 @@ export default function NetworkMap() {
         id: "network-lines",
         type: "line",
         source: "network",
-        "source-layer": "object",
+        "source-layer": "network_objects",
         filter: ["==", ["geometry-type"], "LineString"],
         paint: {
           "line-color": "#EC6D26",
@@ -78,7 +79,7 @@ export default function NetworkMap() {
         id: "network-points",
         type: "circle",
         source: "network",
-        "source-layer": "object",
+        "source-layer": "network_objects",
         filter: ["==", ["geometry-type"], "Point"],
         paint: {
           "circle-radius": 7,
@@ -91,9 +92,13 @@ export default function NetworkMap() {
 
     mapRef.current = map;
 
+    // Expose map on window for DevTools debugging (queryRenderedFeatures, etc.)
+    (window as Record<string, unknown>).__map = map;
+
     return () => {
       map.remove();
       mapRef.current = null;
+      delete (window as Record<string, unknown>).__map;
     };
   }, []);
 

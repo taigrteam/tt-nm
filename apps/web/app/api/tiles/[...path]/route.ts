@@ -55,7 +55,8 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": "application/x-protobuf",
-      "Cache-Control": "public, max-age=3600",
+      "Cache-Control": "private, max-age=300",
+      "Vary": "Cookie",
     },
   });
 }

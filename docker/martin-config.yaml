@@ -1,0 +1,12 @@
+# Martin tile server configuration.
+# Auto-discovers tables and functions from the network_model schema.
+
+postgres:
+  connection_string: postgresql://postgres:devpassword@db:5432/ttdb
+  auto_publish:
+    tables:
+      from_schemas:
+        - network_model
+    functions:
+      from_schemas:
+        - network_model
