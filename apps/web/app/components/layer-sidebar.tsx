@@ -36,13 +36,12 @@ export default function LayerSidebar({ onLayerToggle }: LayerSidebarProps) {
 
   return (
     <div
-      className="flex flex-col transition-[width] duration-200 ease-in-out"
+      className="absolute left-0 top-0 bottom-0 z-10 flex flex-col transition-[width] duration-200 ease-in-out"
       style={{
         width: collapsed ? 40 : 220,
         backgroundColor: "var(--text)",
         borderRight: "1px solid rgba(240,246,247,0.15)",
         overflow: "hidden",
-        flexShrink: 0,
       }}
     >
       {/* Header */}
