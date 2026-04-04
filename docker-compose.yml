@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: ttdb
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: devpassword
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./packages/db/init:/docker-entrypoint-initdb.d:ro
@@ -26,6 +26,8 @@ services:
     image: ghcr.io/maplibre/martin:latest
     container_name: tt-martin
     command: ["-c", "/config/martin-config.yaml"]
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-devpassword}@db:5432/ttdb
     volumes:
       - ./docker/martin-config.yaml:/config/martin-config.yaml:ro
     depends_on:

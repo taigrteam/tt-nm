@@ -5,6 +5,15 @@ import { Map, Popup, type StyleSpecification, type MapMouseEvent, type MapGeoJSO
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { FeatureProperties } from "./attribute-inspector";
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 const MAP_STYLE: StyleSpecification = {
   version: 8,
   sources: {
@@ -177,14 +186,15 @@ export default function NetworkMap({ onFeatureSelect }: NetworkMapProps) {
           const props = f.properties as Record<string, unknown>;
           const title = [props.identity, props.class_name]
             .filter(Boolean)
+            .map((v) => escapeHtml(String(v)))
             .join(" — ");
           if (!title) return;
 
           const details: string[] = [];
-          if (props.voltage_kv) details.push(`${props.voltage_kv} kV`);
-          if (props.status) details.push(String(props.status));
-          if (props.rating_mva) details.push(`${props.rating_mva} MVA`);
-          if (props.length_m) details.push(`${props.length_m} m`);
+          if (props.voltage_kv) details.push(`${escapeHtml(String(props.voltage_kv))} kV`);
+          if (props.status) details.push(escapeHtml(String(props.status)));
+          if (props.rating_mva) details.push(`${escapeHtml(String(props.rating_mva))} MVA`);
+          if (props.length_m) details.push(`${escapeHtml(String(props.length_m))} m`);
 
           const html = `<div style="font-family:Roboto,sans-serif;">
             <div style="font-size:0.75rem;font-weight:700;color:var(--text);">${title}</div>
@@ -208,12 +218,16 @@ export default function NetworkMap({ onFeatureSelect }: NetworkMapProps) {
     });
 
     mapRef.current = map;
-    (window as unknown as Record<string, unknown>).__map = map;
+    if (process.env.NODE_ENV === "development") {
+      (window as unknown as Record<string, unknown>).__map = map;
+    }
 
     return () => {
       map.remove();
       mapRef.current = null;
-      delete (window as unknown as Record<string, unknown>).__map;
+      if (process.env.NODE_ENV === "development") {
+        delete (window as unknown as Record<string, unknown>).__map;
+      }
     };
   }, [onFeatureSelect]);
 

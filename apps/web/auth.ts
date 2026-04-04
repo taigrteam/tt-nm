@@ -3,12 +3,13 @@ import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { db } from "@/lib/db";
 import { users, roles, userRoles } from "@/lib/schema";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
     signIn: "/signin",
   },
+  session: { maxAge: 3600 },
   providers: [
     ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
       ? [Google({
@@ -42,6 +43,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (!sub || !email) {
         // Reject sign-in if the IdP did not supply the required claims.
         return false;
+      }
+
+      // Optional domain allowlist — reject emails outside permitted domains.
+      const allowedDomains = process.env.ALLOWED_EMAIL_DOMAINS?.split(",").map(d => d.trim());
+      if (allowedDomains && allowedDomains.length > 0) {
+        const domain = email.split("@")[1];
+        if (!domain || !allowedDomains.includes(domain)) {
+          return false;
+        }
       }
 
       const idpSource = account?.provider === "microsoft-entra-id" ? "microsoft" : "google";
@@ -83,20 +93,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
 
     async jwt({ token, account }) {
-      // On initial sign-in, account is present. Look up the role by OIDC sub.
+      // Look up role on initial sign-in only (when account is present).
+      // This callback also runs in the Edge runtime (middleware) where
+      // postgres.js TCP connections are unavailable — so DB queries must
+      // be limited to the Node.js sign-in flow. session.maxAge (1 hour)
+      // bounds how long a stale role persists before re-authentication.
       if (account?.providerAccountId) {
-        const sub = account.providerAccountId;
+        token.sub = account.providerAccountId;
 
         const result = await db
           .select({ name: roles.name })
           .from(users)
           .innerJoin(userRoles, eq(userRoles.userId, users.id))
           .innerJoin(roles, eq(roles.id, userRoles.roleId))
-          .where(eq(users.sub, sub))
+          .where(eq(users.sub, token.sub))
+          .orderBy(asc(roles.name))
           .limit(1);
 
         token.role = result[0]?.name ?? "viewer";
-        token.sub = sub;
       }
       return token;
     },

@@ -26,7 +26,11 @@ DECLARE
     result bytea;
 BEGIN
     -- Role is injected by the Next.js tile proxy from the server-side session.
+    -- Validate against known roles; unknown values fall back to viewer.
     user_role := COALESCE(query_params->>'user_role', 'viewer');
+    IF user_role NOT IN ('admin', 'viewer') THEN
+        user_role := 'viewer';
+    END IF;
 
     -- Tile envelope in EPSG:3857 (Web Mercator).
     bounds := ST_TileEnvelope(z, x, y);

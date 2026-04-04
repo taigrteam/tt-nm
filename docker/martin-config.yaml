@@ -1,12 +1,11 @@
 # Martin tile server configuration.
-# Auto-discovers tables and functions from the network_model schema.
+# Connection string is provided via DATABASE_URL env var in docker-compose.yml.
+# Explicit function allowlist — only listed functions are served.
+# Add new entries here when creating new tile function sources.
 
 postgres:
-  connection_string: postgresql://postgres:devpassword@db:5432/ttdb
-  auto_publish:
-    tables:
-      from_schemas:
-        - network_model
-    functions:
-      from_schemas:
-        - network_model
+  connection_string: ${DATABASE_URL}
+  functions:
+    network_objects:
+      schema: network_model
+      function: network_objects
