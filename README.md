@@ -22,9 +22,11 @@ The schema is bitemporal (every record carries `valid_from`/`valid_to`) as a fou
 
 | Path | Purpose |
 |---|---|
-| `DATABASE.md` | Bitemporal property graph schema, metamodel, and DDL reference |
-| `APPLICATION.md` | Stack rationale, RBAC design, implementation instructions, and code reference |
-| `tt-ui-style/` | taigrteam "Phantom" design system — tokens, component spec, and style guide HTML |
+| `CLAUDE.md` | Session brief — stack decisions, security invariants, coding rules |
+| `apps/web/` | Next.js 16 app — frontend, Auth.js, tile proxy Route Handler |
+| `packages/db/init/` | Authoritative DDL — extensions, both schemas, seed data, PostGIS function sources |
+| `docker-compose.yml` | PostgreSQL 17 + PostGIS + Martin (Martin is internal-only, no host port) |
+| `docker/` | `Dockerfile.db` and `martin-config.yaml` |
 
 ## Stack
 

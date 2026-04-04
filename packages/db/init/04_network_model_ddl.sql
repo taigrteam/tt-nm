@@ -1,7 +1,7 @@
 -- 04_network_model_ddl.sql
 -- Property graph schema for network model data.
 --
--- Design notes (see DATABASE.md for full rationale):
+-- Design notes (see CLAUDE.md §4 for domain rules):
 --   • Bitemporal: every table carries valid_from / valid_to.
 --   • Active record filter: WHERE valid_to IS NULL
 --   • PostgreSQL treats NULLs as distinct in UNIQUE constraints — the

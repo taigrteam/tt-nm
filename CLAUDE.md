@@ -8,13 +8,7 @@ This file is read by Claude Code at the start of every session. Follow all instr
 
 A spatial network modelling and visualisation platform for taigrteam. It models physical/logical networks (e.g. electrical grids) as a property graph in PostgreSQL/PostGIS and renders them on an interactive map via MapLibre GL JS v5. The primary concern is accurate network representation and real-time visualisation with role-based attribute security.
 
-**Spec documents — read these before working on the relevant area:**
-- `DATABASE.md` — property graph schema, data dictionary, bitemporality, DDL reference
-- `APPLICATION.md` — RBAC design, auth/proxy pattern, DDL for `iam` schema
-- `STACK.md` — full dependency list, schema namespacing rules, implementation notes
-- `TILE_AUTH.md` — tile authentication flow, tile proxy code, Auth.js session callbacks, security guardrails
-- `tt-ui-style/APPLY-STYLE.md` — step-by-step design system application instructions
-- `tt-ui-style/style.html` — canonical Phantom component reference
+**DDL reference:** `packages/db/init/` contains the authoritative SQL (extensions, both schemas, seed data, function sources).
 
 ---
 
@@ -23,10 +17,30 @@ A spatial network modelling and visualisation platform for taigrteam. It models 
 ```
 tt-nm/
 ├── apps/
-│   └── web/                  # Next.js 16 — frontend + auth + tile proxy (one app, no separate API service)
+│   └── web/                          # Next.js 16 — frontend + auth + tile proxy
+│       ├── app/
+│       │   ├── api/tiles/[...path]/  # Secure tile proxy Route Handler
+│       │   ├── components/           # map-shell, network-map, layer-sidebar, attribute-inspector, nav-bar
+│       │   ├── signin/               # Sign-in page
+│       │   └── layout.tsx / page.tsx
+│       ├── auth.ts                   # Auth.js config (JIT provisioning, jwt/session callbacks)
+│       ├── middleware.ts             # Route protection via Auth.js authorized callback
+│       ├── lib/db.ts                 # Drizzle client
+│       ├── lib/schema.ts             # Drizzle schema for iam tables
+│       └── types/next-auth.d.ts     # Session type augmentation (session.user.role)
 ├── packages/
-│   └── db/                   # Both schemas, Martin SQL function sources, seed data
-├── docker-compose.yml         # PostgreSQL 17 + PostGIS + Martin (internal network only)
+│   └── db/
+│       └── init/                    # Postgres init SQL (runs at container start)
+│           ├── 01_extensions.sql    # postgis, pgrouting
+│           ├── 02_schemas.sql       # CREATE SCHEMA iam / network_model
+│           ├── 03_iam_ddl.sql
+│           ├── 04_network_model_ddl.sql
+│           ├── 05_seed.sql          # Roles, test user, sample network objects
+│           └── 06_function_sources.sql  # PostGIS function sources for Martin
+├── docker/
+│   ├── Dockerfile.db                # PostgreSQL 17 + PostGIS image
+│   └── martin-config.yaml           # Martin tile server config
+├── docker-compose.yml               # db + martin (Martin has NO host port mapping)
 └── CLAUDE.md
 ```
 
@@ -44,7 +58,7 @@ There is **no** `apps/api`. Next.js Route Handlers handle all server-side logic 
 | DB client — `network_model` schema | `postgres.js` raw SQL only | JSONB, recursive CTEs, spatial queries |
 | Tile server | Martin (Rust) | Internal network only — never exposed to host |
 | Map renderer | MapLibre GL JS v5 | WebGPU, client-side only |
-| Styling | Tailwind CSS + shadcn/ui + Phantom tokens | See Section 7 |
+| Styling | Tailwind CSS v4 + `@base-ui/react` + Phantom tokens | See Section 9 |
 | Validation | Zod | Tile coordinates + spatial GeoJSON inputs |
 | Client-side spatial | Turf.js | Buffers, intersections, distance |
 | Icons | Lucide React | GIS toolbar icons |
@@ -66,20 +80,29 @@ iam.user_roles
 iam.idp_group_mappings
 ```
 
+**Permission slug convention:** `service:resource:action` — e.g. `map:network:read`, `map:cost_data:read`. Supports wildcard matching (`map:*`). The `description` field on `iam.permissions` is the human-readable label used in UI overlays and access-denied messages. IdP groups (Azure/Google group GUIDs) map to internal roles via `iam.idp_group_mappings` — identity stays in the IdP, permissions stay in the app.
+
 ### `network_model` — the property graph
 All network data, data dictionary, and view specs. Queried via raw `postgres.js`.
 ```
-network_model.class_definition
-network_model.attribute_definition
-network_model.class_attribute_config
-network_model.view_definition
-network_model.view_column_spec
-network_model.object
-network_model.relationship
-network_model.state
+network_model.class_definition       -- class inheritance tree (recursive, nullable parent_class_uuid)
+network_model.attribute_definition   -- attribute registry
+network_model.class_attribute_config -- per-class attribute rules; child config overrides parent for same attr
+network_model.view_definition        -- view specs (flattened JSONB → columns); materialized views refreshed externally
+network_model.view_column_spec       -- column mapping: source_path → alias + display_name
+network_model.object                 -- asset instances; natural key is (namespace, identity)
+network_model.relationship           -- edges between objects; rel_type: 'edge' (flow) | 'composition' (hierarchy)
+network_model.state                  -- volatile operational state (e.g. switch open/closed); decoupled from object
 ```
 
 **Never** write `public.object` or `data.object`. Always qualify: `network_model.object`.
+
+**Key domain rules:**
+- **Natural key:** `(namespace, identity)` is the immutable asset identifier across its entire life. The `uuid` changes with each version; `(namespace, identity)` does not.
+- **Class inheritance:** Attribute configs are inherited up the class tree. A config on a child class overrides the same attribute on any ancestor. Resolve via recursive CTE (`WITH RECURSIVE lineage AS ...`).
+- **Relationship types:** `edge` = functional flow between assets (e.g. current path). `composition` = physical containment hierarchy (e.g. substation contains feeder).
+- **Update pattern (Terminate-and-Insert):** To update an object, compute MD5 of incoming `attributes` JSONB. If it differs from the active record: set `valid_to = NOW()` on the old record, insert a new version. Never UPDATE in place.
+- **State table:** `network_model.state` stores volatile operational values (switch position, alarm status). Kept separate from `network_model.object` to avoid version explosion on master data.
 
 ### PostgreSQL extensions (must be installed in this order)
 ```sql
@@ -128,17 +151,15 @@ These rules must never be violated. They are the security boundary of the entire
    }
    ```
 
-See `TILE_AUTH.md` for the complete Route Handler implementation and Auth.js session callback code.
-
 ---
 
 ## 7. Auth.js session setup
 
 Auth.js does not include application roles in the session by default. The `jwt` and `session` callbacks in `auth.ts` must look up the role from `iam.user_roles` and attach it. The TypeScript type for `Session` must be augmented in `types/next-auth.d.ts`.
 
-Full implementation is in `TILE_AUTH.md` Section 5. Do not skip this — without it, `session.user.role` is undefined and the tile proxy will reject all requests.
+The jwt callback looks up the role via Drizzle (joining `iam.users → iam.user_roles → iam.roles`) using the OIDC `providerAccountId` (sub). The session callback exposes `token.role` as `session.user.role`. TypeScript augmentation lives in `types/next-auth.d.ts`.
 
-JIT provisioning runs in the `signIn` callback: check `iam.users` for the OIDC `sub` claim; if absent, insert the user and assign the default role.
+JIT provisioning runs in the `signIn` callback: check `iam.users` for the OIDC `sub` claim; if absent, insert the user and assign the default `viewer` role. `providerAccountId` is the immutable identifier — never rely on email alone.
 
 ---
 
@@ -148,22 +169,15 @@ JIT provisioning runs in the `signIn` callback: check `iam.users` for the OIDC `
 - **Push `'use client'` as far down the tree as possible.** The map component is `'use client'`; its parent layout is not.
 - **All request APIs are async:** `await cookies()`, `await headers()`, `await params`, `await searchParams`.
 - **Data mutations use Server Actions** (`'use server'`), not Route Handlers (except the tile proxy and any public API endpoints).
-- **Proxy file:** `proxy.ts` at the same level as `app/` (or inside `src/` if using src dir), not `middleware.ts`.
+- **Route protection** is handled by `middleware.ts` (Auth.js `authorized` callback). The tile proxy is a Route Handler at `app/api/tiles/[...path]/route.ts`.
 
 ---
 
 ## 9. Design system — Phantom
 
-The UI uses the taigrteam "Phantom" design system built on shadcn/ui + Tailwind CSS.
+The UI uses the taigrteam "Phantom" design system. Component primitives come from `@base-ui/react` (not Radix/shadcn). Styling uses Tailwind CSS v4.
 
-**Setup order (must be followed exactly):**
-1. `npx shadcn@latest init` — choose CSS variables mode
-2. Immediately replace generated CSS variables in `globals.css` with Phantom tokens (before adding any component)
-3. Set `borderRadius: '0'` in `tailwind.config`
-4. Add Orbitron + Roboto Google Fonts to the layout
-5. Then `npx shadcn add <component>` — components inherit correct tokens from the start
-
-**Canonical tokens:**
+**Canonical tokens** (defined in `globals.css` `:root`):**
 ```css
 --bg:         #F0F6F7
 --text:       #05100E
@@ -181,15 +195,41 @@ The UI uses the taigrteam "Phantom" design system built on shadcn/ui + Tailwind 
 --row-hover:  rgba(236,109,38,0.06)
 ```
 
-**Rules:**
-- `border-radius: 0` on all interactive and container elements — no exceptions
-- Elevated elements: `box-shadow: 6px 6px 0 var(--shadow-col)` — no blur/spread shadows
-- Headings: `font-family: 'Orbitron', sans-serif`
+**Typography:**
+- Headings (h1–h3): `font-family: 'Orbitron', sans-serif`; fluid sizing — h1: `clamp(1.6rem, 4vw, 2.8rem)`, h2: `clamp(1.1rem, 2.5vw, 1.6rem)`
 - Body/UI/labels: `font-family: 'Roboto', sans-serif`
 - Code/mono: `font-family: 'Courier New', monospace`
-- `--text-muted` opacity must be ≥ 0.65 — values below this fail WCAG AA contrast
+- Google Fonts loaded via `<link>` in layout: Orbitron (700, 900) + Roboto (400, 700)
 
-See `tt-ui-style/APPLY-STYLE.md` for the full checklist. See `tt-ui-style/style.html` for the live component reference.
+**Borders, corners, shadows:**
+- `border-radius: 0` on all interactive and container elements — no exceptions
+- Elevated elements: `box-shadow: 6px 6px 0 var(--shadow-col)` — no blur/spread shadows
+- Borders use `var(--border-col)` or `var(--accent)` — never grey system colours
+- Button borders: `3px solid` (default/large), `2px solid` (sm)
+
+**Button variants:**
+
+| Variant | Background | Text | Border |
+|---|---|---|---|
+| primary | `var(--text)` | `var(--bg)` | `3px solid var(--border-col)` |
+| accent | `var(--accent)` | `var(--accent-fg)` | `3px solid var(--accent)` |
+| outline | `transparent` | `var(--text)` | `3px solid var(--border-col)` |
+| ghost | `transparent` | `var(--text)` | `3px solid transparent` |
+
+Hover: primary/outline/ghost → `opacity: 0.85`. Accent → `opacity: 1; box-shadow: 4px 4px 0 var(--text)`.
+Disabled: `opacity: 0.4; cursor: not-allowed; pointer-events: none`.
+All buttons: `font-weight: 700; letter-spacing: 0.05em; transition: opacity 0.15s ease, box-shadow 0.15s ease`.
+
+**Inputs / selects:**
+- `border-radius: 0; border: 2px solid var(--border-col); background: var(--input-bg)`
+- Focus: `box-shadow: 4px 4px 0 var(--accent); border-color: var(--accent); outline: none`
+
+**Accessibility — CRITICAL:**
+- `--text-muted` opacity must be ≥ 0.65. Values like `rgba(*,*,*,0.4)` fail WCAG AA — raise to 0.65 minimum.
+- Never use `display: none` on toggle/switch `<input>` — use the visually-hidden pattern (`position: absolute; width: 1px; height: 1px; clip: rect(0,0,0,0)`).
+- Every `<label>` must have a `for` attribute matched to an input `id`.
+- Error fields: `aria-invalid="true"` + `aria-describedby="[error-id]"` on the input; matching `id` on the error message.
+- Focus ring: `:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px }` — never suppress without replacement.
 
 ---
 
@@ -246,5 +286,5 @@ OSM attribution (`© OpenStreetMap contributors`) must be visible on the map at 
 - **Validate at boundaries.** Use Zod to validate tile coordinates (`z`, `x`, `y`) and any incoming GeoJSON. Do not validate internal function-to-function calls.
 - **No `any` in TypeScript.** Type the Drizzle schema, the session augmentation, and the postgres.js query results.
 - **Environment variables.** Never hardcode connection strings, secrets, or URLs. Use `.env.local` (gitignored). Required vars: `DATABASE_URL`, `MARTIN_INTERNAL_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_MICROSOFT_ENTRA_ID_ID`, `AUTH_MICROSOFT_ENTRA_ID_SECRET`, `AUTH_MICROSOFT_ENTRA_ID_ISSUER`.
-- **Docker compose.** The `martin` service must never have a `ports` mapping. The `postgres` service exposes port 5432 to the host for local development only.
-- **No speculative features.** Build exactly what is asked. Do not add error boundaries, loading states, or utility helpers that are not needed for the current phase.
+- **Docker compose.** The `martin` service must never have a `ports` mapping in `docker-compose.yml`. Local dev access to Martin (if needed) goes in `docker-compose.override.yml`, which is gitignored. The `postgres` service exposes port 5432 to the host for local dev only.
+- **No speculative features.** Build exactly what is asked. Do not add error boundaries, loading states, or utility helpers that are not needed for the task.
