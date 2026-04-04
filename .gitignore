@@ -28,3 +28,6 @@ Thumbs.db
 
 # pnpm
 pnpm-debug.log*
+
+# npm log
+dev.log
