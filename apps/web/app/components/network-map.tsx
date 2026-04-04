@@ -37,7 +37,8 @@ const MAP_STYLE: StyleSpecification = {
 const INITIAL_CENTER: [number, number] = [-1.9001, 52.4801];
 const INITIAL_ZOOM = 13;
 const INTERACTIVE_LAYERS = [
-  "network-points",
+  "primary-substations",
+  "secondary-substations",
   "overhead-lines",
   "underground-cables",
 ];
@@ -101,6 +102,7 @@ export default function NetworkMap({ onFeatureSelect }: NetworkMapProps) {
           "line-color": "#EC6D26",
           "line-width": 3,
           "line-opacity": 0.9,
+          "line-dasharray": [4, 3],
         },
       });
 
@@ -118,41 +120,42 @@ export default function NetworkMap({ onFeatureSelect }: NetworkMapProps) {
           "line-color": "#7B4DB5",
           "line-width": 3,
           "line-opacity": 0.9,
-          "line-dasharray": [2, 2],
         },
       });
 
-      // --- Point layer with data-driven styling ---
+      // --- Point layers (primary + secondary substations) ---
 
       map.addLayer({
-        id: "network-points",
+        id: "primary-substations",
         type: "circle",
         source: "network",
         "source-layer": "network_objects",
-        filter: ["==", ["geometry-type"], "Point"],
+        filter: [
+          "all",
+          ["==", ["geometry-type"], "Point"],
+          ["==", ["get", "class_name"], "PrimarySubstation"],
+        ],
         paint: {
-          "circle-radius": [
-            "case",
-            ["all", ["==", ["get", "class_name"], "Substation"], ["==", ["get", "discriminator"], "PRIMARY"]],
-            10,
-            ["==", ["get", "class_name"], "Substation"],
-            8,
-            ["==", ["get", "class_name"], "Transformer"],
-            9,
-            // Switch (default)
-            6,
-          ],
-          "circle-color": [
-            "case",
-            ["all", ["==", ["get", "class_name"], "Substation"], ["==", ["get", "discriminator"], "PRIMARY"]],
-            "#EC6D26",
-            ["==", ["get", "class_name"], "Substation"],
-            "#0D8C80",
-            ["==", ["get", "class_name"], "Transformer"],
-            "#7B4DB5",
-            // Switch
-            "#D4A843",
-          ],
+          "circle-radius": 10,
+          "circle-color": "#EC6D26",
+          "circle-stroke-color": "#05100E",
+          "circle-stroke-width": 1.5,
+        },
+      });
+
+      map.addLayer({
+        id: "secondary-substations",
+        type: "circle",
+        source: "network",
+        "source-layer": "network_objects",
+        filter: [
+          "all",
+          ["==", ["geometry-type"], "Point"],
+          ["==", ["get", "class_name"], "SecondarySubstation"],
+        ],
+        paint: {
+          "circle-radius": 8,
+          "circle-color": "#0D8C80",
           "circle-stroke-color": "#05100E",
           "circle-stroke-width": 1.5,
         },

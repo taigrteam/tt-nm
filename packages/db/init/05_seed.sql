@@ -6,16 +6,15 @@
 -- Network: Fictional 11kV distribution network, Birmingham area, WGS84.
 --
 --   PSS-001 (Primary 33kV Substation)
---   ├── OHL-001 ──── SW-001 ──── SSA-001 (Secondary 11kV, NE)
---   │                             ├── OHL-003 ──── SW-003 ──── SSC-001 (Secondary 11kV, NW)
---   │                             │                             └── UGC-002 ──── SW-006 ──── PSS-001 (ring)
---   │                             └── UGC-001 ──── SW-005 ──── SSE-001 (Secondary 11kV, E)
---   │                                                           └── OHL-005 ──── SW-007 ──── SSF-001 (Secondary 11kV, far E)
---   ├── OHL-002 ──── SW-002 ──── SSB-001 (Secondary 11kV, SW)
---   │                             └── OHL-004 ──── SW-004 ──── SSD-001 (Secondary 11kV, S)
---   └── TX-001 (33/11kV Transformer at PSS)
+--   ├── OHL-001 ──── SSG-001 ──── SSA-001 (Secondary 11kV, NE)
+--   │                              ├── OHL-003 ──── SSI-001 ──── SSC-001 (Secondary 11kV, NW)
+--   │                              │                              └── UGC-002 ──── SSL-001 ──── PSS-001 (ring)
+--   │                              └── UGC-001 ──── SSK-001 ──── SSE-001 (Secondary 11kV, E)
+--   │                                                             └── OHL-005 ──── SSM-001 ──── SSF-001 (Secondary 11kV, far E)
+--   ├── OHL-002 ──── SSH-001 ──── SSB-001 (Secondary 11kV, SW)
+--   │                              └── OHL-004 ──── SSJ-001 ──── SSD-001 (Secondary 11kV, S)
 --
--- 22 objects, 16 relationships.
+-- 20 objects (substations + conductors), 14 relationships.
 -- UUIDs are hardcoded for stable cross-references in tests and Phase 6 queries.
 -- Class UUIDs:  11111111-0000-4000-8000-00000000000x
 -- Attr UUIDs:   22222222-0000-4000-8000-00000000000x
@@ -71,7 +70,11 @@ VALUES
   ('11111111-0000-4000-8000-000000000002', '11111111-0000-4000-8000-000000000001',
    'ELEC', 'Node', 'OBJECT', TRUE),
   ('11111111-0000-4000-8000-000000000003', '11111111-0000-4000-8000-000000000002',
-   'ELEC', 'Substation', 'OBJECT', FALSE),
+   'ELEC', 'Substation', 'OBJECT', TRUE),
+  ('11111111-0000-4000-8000-000000000009', '11111111-0000-4000-8000-000000000003',
+   'ELEC', 'PrimarySubstation', 'OBJECT', FALSE),
+  ('11111111-0000-4000-8000-00000000000a', '11111111-0000-4000-8000-000000000003',
+   'ELEC', 'SecondarySubstation', 'OBJECT', FALSE),
   ('11111111-0000-4000-8000-000000000004', '11111111-0000-4000-8000-000000000002',
    'ELEC', 'Switch', 'OBJECT', FALSE),
   ('11111111-0000-4000-8000-000000000007', '11111111-0000-4000-8000-000000000002',
@@ -112,8 +115,8 @@ INSERT INTO network_model.object
 VALUES (
   '33333333-0000-4000-8000-000000000001',
   'ELEC', 'PSS-001',
-  '11111111-0000-4000-8000-000000000003',
-  'PRIMARY',
+  '11111111-0000-4000-8000-000000000009',
+  '33kV',
   ST_SetSRID(ST_MakePoint(-1.9001, 52.4801), 4326),
   '{"voltage_kv": 33, "rating_mva": 40, "cost_data": 850000}',
   md5('{"voltage_kv": 33, "rating_mva": 40, "cost_data": 850000}')
@@ -125,8 +128,8 @@ INSERT INTO network_model.object
 VALUES (
   '33333333-0000-4000-8000-000000000002',
   'ELEC', 'SSA-001',
-  '11111111-0000-4000-8000-000000000003',
-  'SECONDARY',
+  '11111111-0000-4000-8000-00000000000a',
+  '11kV',
   ST_SetSRID(ST_MakePoint(-1.8901, 52.4901), 4326),
   '{"voltage_kv": 11, "rating_mva": 5, "cost_data": 120000}',
   md5('{"voltage_kv": 11, "rating_mva": 5, "cost_data": 120000}')
@@ -138,8 +141,8 @@ INSERT INTO network_model.object
 VALUES (
   '33333333-0000-4000-8000-000000000003',
   'ELEC', 'SSB-001',
-  '11111111-0000-4000-8000-000000000003',
-  'SECONDARY',
+  '11111111-0000-4000-8000-00000000000a',
+  '11kV',
   ST_SetSRID(ST_MakePoint(-1.9151, 52.4751), 4326),
   '{"voltage_kv": 11, "rating_mva": 3, "cost_data": 95000}',
   md5('{"voltage_kv": 11, "rating_mva": 3, "cost_data": 95000}')
@@ -151,8 +154,8 @@ INSERT INTO network_model.object
 VALUES (
   '33333333-0000-4000-8000-000000000009',
   'ELEC', 'SSC-001',
-  '11111111-0000-4000-8000-000000000003',
-  'SECONDARY',
+  '11111111-0000-4000-8000-00000000000a',
+  '11kV',
   ST_SetSRID(ST_MakePoint(-1.9201, 52.4901), 4326),
   '{"voltage_kv": 11, "rating_mva": 4, "cost_data": 105000}',
   md5('{"voltage_kv": 11, "rating_mva": 4, "cost_data": 105000}')
@@ -164,8 +167,8 @@ INSERT INTO network_model.object
 VALUES (
   '33333333-0000-4000-8000-00000000000a',
   'ELEC', 'SSD-001',
-  '11111111-0000-4000-8000-000000000003',
-  'SECONDARY',
+  '11111111-0000-4000-8000-00000000000a',
+  '11kV',
   ST_SetSRID(ST_MakePoint(-1.9101, 52.4651), 4326),
   '{"voltage_kv": 11, "rating_mva": 2, "cost_data": 78000}',
   md5('{"voltage_kv": 11, "rating_mva": 2, "cost_data": 78000}')
@@ -177,8 +180,8 @@ INSERT INTO network_model.object
 VALUES (
   '33333333-0000-4000-8000-00000000000b',
   'ELEC', 'SSE-001',
-  '11111111-0000-4000-8000-000000000003',
-  'SECONDARY',
+  '11111111-0000-4000-8000-00000000000a',
+  '11kV',
   ST_SetSRID(ST_MakePoint(-1.8751, 52.4851), 4326),
   '{"voltage_kv": 11, "rating_mva": 3, "cost_data": 92000}',
   md5('{"voltage_kv": 11, "rating_mva": 3, "cost_data": 92000}')
@@ -190,124 +193,109 @@ INSERT INTO network_model.object
 VALUES (
   '33333333-0000-4000-8000-00000000000c',
   'ELEC', 'SSF-001',
-  '11111111-0000-4000-8000-000000000003',
-  'SECONDARY',
+  '11111111-0000-4000-8000-00000000000a',
+  '11kV',
   ST_SetSRID(ST_MakePoint(-1.8601, 52.4801), 4326),
   '{"voltage_kv": 11, "rating_mva": 2, "cost_data": 68000}',
   md5('{"voltage_kv": 11, "rating_mva": 2, "cost_data": 68000}')
 );
 
--- ── Transformer ──────────────────────────────────────────────────────────────
+-- ── Secondary substations (formerly switches — co-located at conductor junctions) ─
 
--- TX-001 — 33/11kV transformer at PSS-001
-INSERT INTO network_model.object
-    (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
-VALUES (
-  '33333333-0000-4000-8000-000000000008',
-  'ELEC', 'TX-001',
-  '11111111-0000-4000-8000-000000000007',
-  NULL,
-  ST_SetSRID(ST_MakePoint(-1.9011, 52.4811), 4326),
-  '{"voltage_kv": 33, "rating_mva": 40, "ratio": "33/11", "cost_data": 420000}',
-  md5('{"voltage_kv": 33, "rating_mva": 40, "ratio": "33/11", "cost_data": 420000}')
-);
-
--- ── Switches ─────────────────────────────────────────────────────────────────
-
--- SW-001 — between PSS and SSA
+-- SSG-001 — between PSS and SSA
 INSERT INTO network_model.object
     (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
 VALUES (
   '33333333-0000-4000-8000-000000000004',
-  'ELEC', 'SW-001',
-  '11111111-0000-4000-8000-000000000004',
-  NULL,
+  'ELEC', 'SSG-001',
+  '11111111-0000-4000-8000-00000000000a',
+  '11kV',
   ST_SetSRID(ST_MakePoint(-1.8951, 52.4851), 4326),
-  '{"voltage_kv": 11, "status": "closed"}',
-  md5('{"voltage_kv": 11, "status": "closed"}')
+  '{"voltage_kv": 11, "rating_mva": 1, "cost_data": 45000}',
+  md5('{"voltage_kv": 11, "rating_mva": 1, "cost_data": 45000}')
 );
 
--- SW-002 — between PSS and SSB
+-- SSH-001 — between PSS and SSB
 INSERT INTO network_model.object
     (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
 VALUES (
   '33333333-0000-4000-8000-000000000005',
-  'ELEC', 'SW-002',
-  '11111111-0000-4000-8000-000000000004',
-  NULL,
+  'ELEC', 'SSH-001',
+  '11111111-0000-4000-8000-00000000000a',
+  '11kV',
   ST_SetSRID(ST_MakePoint(-1.9071, 52.4771), 4326),
-  '{"voltage_kv": 11, "status": "closed"}',
-  md5('{"voltage_kv": 11, "status": "closed"}')
+  '{"voltage_kv": 11, "rating_mva": 1, "cost_data": 45000}',
+  md5('{"voltage_kv": 11, "rating_mva": 1, "cost_data": 45000}')
 );
 
--- SW-003 — between SSA and SSC
+-- SSI-001 — between SSA and SSC
 INSERT INTO network_model.object
     (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
 VALUES (
   '33333333-0000-4000-8000-00000000000d',
-  'ELEC', 'SW-003',
-  '11111111-0000-4000-8000-000000000004',
-  NULL,
+  'ELEC', 'SSI-001',
+  '11111111-0000-4000-8000-00000000000a',
+  '11kV',
   ST_SetSRID(ST_MakePoint(-1.9051, 52.4921), 4326),
-  '{"voltage_kv": 11, "status": "closed"}',
-  md5('{"voltage_kv": 11, "status": "closed"}')
+  '{"voltage_kv": 11, "rating_mva": 1, "cost_data": 42000}',
+  md5('{"voltage_kv": 11, "rating_mva": 1, "cost_data": 42000}')
 );
 
--- SW-004 — between SSB and SSD
+-- SSJ-001 — between SSB and SSD
 INSERT INTO network_model.object
     (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
 VALUES (
   '33333333-0000-4000-8000-00000000000e',
-  'ELEC', 'SW-004',
-  '11111111-0000-4000-8000-000000000004',
-  NULL,
+  'ELEC', 'SSJ-001',
+  '11111111-0000-4000-8000-00000000000a',
+  '11kV',
   ST_SetSRID(ST_MakePoint(-1.9131, 52.4701), 4326),
-  '{"voltage_kv": 11, "status": "closed"}',
-  md5('{"voltage_kv": 11, "status": "closed"}')
+  '{"voltage_kv": 11, "rating_mva": 1, "cost_data": 42000}',
+  md5('{"voltage_kv": 11, "rating_mva": 1, "cost_data": 42000}')
 );
 
--- SW-005 — between SSA and SSE
+-- SSK-001 — between SSA and SSE
 INSERT INTO network_model.object
     (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
 VALUES (
   '33333333-0000-4000-8000-00000000000f',
-  'ELEC', 'SW-005',
-  '11111111-0000-4000-8000-000000000004',
-  NULL,
+  'ELEC', 'SSK-001',
+  '11111111-0000-4000-8000-00000000000a',
+  '11kV',
   ST_SetSRID(ST_MakePoint(-1.8821, 52.4871), 4326),
-  '{"voltage_kv": 11, "status": "closed"}',
-  md5('{"voltage_kv": 11, "status": "closed"}')
+  '{"voltage_kv": 11, "rating_mva": 1, "cost_data": 43000}',
+  md5('{"voltage_kv": 11, "rating_mva": 1, "cost_data": 43000}')
 );
 
--- SW-006 — between SSC and PSS (ring feeder)
+-- SSL-001 — between SSC and PSS (ring feeder)
 INSERT INTO network_model.object
     (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
 VALUES (
   '33333333-0000-4000-8000-000000000010',
-  'ELEC', 'SW-006',
-  '11111111-0000-4000-8000-000000000004',
-  NULL,
+  'ELEC', 'SSL-001',
+  '11111111-0000-4000-8000-00000000000a',
+  '11kV',
   ST_SetSRID(ST_MakePoint(-1.9121, 52.4861), 4326),
-  '{"voltage_kv": 11, "status": "open"}',
-  md5('{"voltage_kv": 11, "status": "open"}')
+  '{"voltage_kv": 11, "rating_mva": 1, "cost_data": 44000}',
+  md5('{"voltage_kv": 11, "rating_mva": 1, "cost_data": 44000}')
 );
 
--- SW-007 — between SSE and SSF
+-- SSM-001 — between SSE and SSF
 INSERT INTO network_model.object
     (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
 VALUES (
   '33333333-0000-4000-8000-000000000011',
-  'ELEC', 'SW-007',
-  '11111111-0000-4000-8000-000000000004',
-  NULL,
+  'ELEC', 'SSM-001',
+  '11111111-0000-4000-8000-00000000000a',
+  '11kV',
   ST_SetSRID(ST_MakePoint(-1.8671, 52.4831), 4326),
-  '{"voltage_kv": 11, "status": "closed"}',
-  md5('{"voltage_kv": 11, "status": "closed"}')
+  '{"voltage_kv": 11, "rating_mva": 1, "cost_data": 41000}',
+  md5('{"voltage_kv": 11, "rating_mva": 1, "cost_data": 41000}')
 );
 
 -- ── Overhead Lines ───────────────────────────────────────────────────────────
 
--- OHL-001 — PSS → SW-001 → SSA
+-- OHL-001 — PSS → SSG → SSA
 INSERT INTO network_model.object
     (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
 VALUES (
@@ -324,7 +312,7 @@ VALUES (
   md5('{"voltage_kv": 11, "length_m": 1420, "cost_data": 28400}')
 );
 
--- OHL-002 — PSS → SW-002 → SSB
+-- OHL-002 — PSS → SSH → SSB
 INSERT INTO network_model.object
     (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
 VALUES (
@@ -341,7 +329,7 @@ VALUES (
   md5('{"voltage_kv": 11, "length_m": 1650, "cost_data": 33000}')
 );
 
--- OHL-003 — SSA → SW-003 → SSC
+-- OHL-003 — SSA → SSI → SSC
 INSERT INTO network_model.object
     (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
 VALUES (
@@ -358,7 +346,7 @@ VALUES (
   md5('{"voltage_kv": 11, "length_m": 2180, "cost_data": 43600}')
 );
 
--- OHL-004 — SSB → SW-004 → SSD
+-- OHL-004 — SSB → SSJ → SSD
 INSERT INTO network_model.object
     (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
 VALUES (
@@ -375,7 +363,7 @@ VALUES (
   md5('{"voltage_kv": 11, "length_m": 1180, "cost_data": 23600}')
 );
 
--- OHL-005 — SSE → SW-007 → SSF
+-- OHL-005 — SSE → SSM → SSF
 INSERT INTO network_model.object
     (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
 VALUES (
@@ -394,7 +382,7 @@ VALUES (
 
 -- ── Underground Cables ───────────────────────────────────────────────────────
 
--- UGC-001 — SSA → SW-005 → SSE (urban section)
+-- UGC-001 — SSA → SSK → SSE (urban section)
 INSERT INTO network_model.object
     (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
 VALUES (
@@ -411,7 +399,7 @@ VALUES (
   md5('{"voltage_kv": 11, "length_m": 1340, "cost_data": 67000}')
 );
 
--- UGC-002 — SSC → SW-006 → PSS (ring feeder completion, normally open)
+-- UGC-002 — SSC → SSL → PSS (ring feeder completion)
 INSERT INTO network_model.object
     (uuid, namespace, identity, class_uuid, discriminator, geo_geometry, attributes, hash)
 VALUES (
@@ -434,77 +422,72 @@ VALUES (
 INSERT INTO network_model.relationship
     (source_uuid, target_uuid, class_uuid, rel_type)
 VALUES
-  -- PSS-001 → TX-001
-  ('33333333-0000-4000-8000-000000000001',
-   '33333333-0000-4000-8000-000000000008',
-   '11111111-0000-4000-8000-000000000010', 'edge'),
-
-  -- PSS-001 → SW-001
+  -- PSS-001 → SSG-001
   ('33333333-0000-4000-8000-000000000001',
    '33333333-0000-4000-8000-000000000004',
    '11111111-0000-4000-8000-000000000010', 'edge'),
 
-  -- SW-001 → SSA-001
+  -- SSG-001 → SSA-001
   ('33333333-0000-4000-8000-000000000004',
    '33333333-0000-4000-8000-000000000002',
    '11111111-0000-4000-8000-000000000010', 'edge'),
 
-  -- PSS-001 → SW-002
+  -- PSS-001 → SSH-001
   ('33333333-0000-4000-8000-000000000001',
    '33333333-0000-4000-8000-000000000005',
    '11111111-0000-4000-8000-000000000010', 'edge'),
 
-  -- SW-002 → SSB-001
+  -- SSH-001 → SSB-001
   ('33333333-0000-4000-8000-000000000005',
    '33333333-0000-4000-8000-000000000003',
    '11111111-0000-4000-8000-000000000010', 'edge'),
 
-  -- SSA-001 → SW-003
+  -- SSA-001 → SSI-001
   ('33333333-0000-4000-8000-000000000002',
    '33333333-0000-4000-8000-00000000000d',
    '11111111-0000-4000-8000-000000000010', 'edge'),
 
-  -- SW-003 → SSC-001
+  -- SSI-001 → SSC-001
   ('33333333-0000-4000-8000-00000000000d',
    '33333333-0000-4000-8000-000000000009',
    '11111111-0000-4000-8000-000000000010', 'edge'),
 
-  -- SSB-001 → SW-004
+  -- SSB-001 → SSJ-001
   ('33333333-0000-4000-8000-000000000003',
    '33333333-0000-4000-8000-00000000000e',
    '11111111-0000-4000-8000-000000000010', 'edge'),
 
-  -- SW-004 → SSD-001
+  -- SSJ-001 → SSD-001
   ('33333333-0000-4000-8000-00000000000e',
    '33333333-0000-4000-8000-00000000000a',
    '11111111-0000-4000-8000-000000000010', 'edge'),
 
-  -- SSA-001 → SW-005
+  -- SSA-001 → SSK-001
   ('33333333-0000-4000-8000-000000000002',
    '33333333-0000-4000-8000-00000000000f',
    '11111111-0000-4000-8000-000000000010', 'edge'),
 
-  -- SW-005 → SSE-001
+  -- SSK-001 → SSE-001
   ('33333333-0000-4000-8000-00000000000f',
    '33333333-0000-4000-8000-00000000000b',
    '11111111-0000-4000-8000-000000000010', 'edge'),
 
-  -- SSC-001 → SW-006 (ring feeder)
+  -- SSC-001 → SSL-001 (ring feeder)
   ('33333333-0000-4000-8000-000000000009',
    '33333333-0000-4000-8000-000000000010',
    '11111111-0000-4000-8000-000000000010', 'edge'),
 
-  -- SW-006 → PSS-001 (ring feeder completion)
+  -- SSL-001 → PSS-001 (ring feeder completion)
   ('33333333-0000-4000-8000-000000000010',
    '33333333-0000-4000-8000-000000000001',
    '11111111-0000-4000-8000-000000000010', 'edge'),
 
-  -- SSE-001 → SW-007
+  -- SSE-001 → SSM-001
   ('33333333-0000-4000-8000-00000000000b',
    '33333333-0000-4000-8000-000000000011',
    '11111111-0000-4000-8000-000000000010', 'edge'),
 
-  -- SW-007 → SSF-001
+  -- SSM-001 → SSF-001
   ('33333333-0000-4000-8000-000000000011',
    '33333333-0000-4000-8000-00000000000c',
    '11111111-0000-4000-8000-000000000010', 'edge');

@@ -19,7 +19,12 @@ export default function MapShell() {
 
   const handleFeatureSelect = useCallback(
     (properties: FeatureProperties | null) => {
-      setSelectedFeature(properties);
+      setSelectedFeature((prev) => {
+        if (properties && prev && properties.id === prev.id) {
+          return null;
+        }
+        return properties;
+      });
     },
     [],
   );
