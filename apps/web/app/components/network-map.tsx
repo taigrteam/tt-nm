@@ -74,7 +74,14 @@ export default function NetworkMap({ onFeatureSelect }: NetworkMapProps) {
       style: MAP_STYLE,
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
+      maxPitch: 0,
+      dragRotate: false,
+      touchZoomRotate: true,
+      pitchWithRotate: false,
     });
+
+    // Disable keyboard rotation (Shift+arrow keys).
+    map.keyboard.disableRotation();
 
     map.on("load", () => {
       map.addSource("network", {
