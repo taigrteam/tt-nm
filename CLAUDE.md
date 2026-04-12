@@ -63,6 +63,8 @@ There is **no** `apps/api`. Next.js Route Handlers handle all server-side logic 
 | Client-side spatial | Turf.js | Buffers, intersections, distance |
 | Icons | Lucide React | GIS toolbar icons |
 
+STRICT: Do not use Vercel Storage tools. Database is local PostgreSQL in Docker only.
+
 ---
 
 ## 4. Database schemas — CRITICAL

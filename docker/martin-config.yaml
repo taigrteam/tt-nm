@@ -1,11 +1,20 @@
 # Martin tile server configuration.
 # Connection string is provided via DATABASE_URL env var in docker-compose.yml.
-# Explicit function allowlist — only listed functions are served.
-# Add new entries here when creating new tile function sources.
+# One function source per materialized view in the network_views schema.
+# Add a new entry here whenever a new view_definition record is added.
 
 postgres:
   connection_string: ${DATABASE_URL}
   functions:
-    network_objects:
-      schema: network_model
-      function: network_objects
+    vw_overhead_line:
+      schema: network_views
+      function: vw_overhead_line
+    vw_underground_cable:
+      schema: network_views
+      function: vw_underground_cable
+    vw_primary_substation:
+      schema: network_views
+      function: vw_primary_substation
+    vw_secondary_substation:
+      schema: network_views
+      function: vw_secondary_substation

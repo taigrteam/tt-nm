@@ -12,3 +12,6 @@ if (!connectionString) {
 const client = postgres(connectionString);
 
 export const db = drizzle(client, { schema });
+
+// Raw postgres.js client for data_dictionary and network_model queries (raw SQL only).
+export const sql = client;

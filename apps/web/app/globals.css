@@ -120,6 +120,25 @@ body {
   display: none;
 }
 
+/* Landing page accent CTA */
+.btn-accent-cta {
+  display: inline-block;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  padding: 0.65rem 1.5rem;
+  background-color: var(--accent);
+  color: var(--accent-fg);
+  border: 3px solid var(--accent);
+  text-decoration: none;
+  transition: box-shadow 0.15s ease;
+}
+.btn-accent-cta:hover {
+  box-shadow: 4px 4px 0 var(--text);
+}
+
 /* Focus-visible ring — WCAG keyboard navigation */
 :focus-visible {
   outline: 3px solid var(--accent);

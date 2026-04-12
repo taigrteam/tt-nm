@@ -1,14 +1,18 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import NetworkMap from "./network-map";
 import LayerSidebar from "./layer-sidebar";
 import AttributeInspector, { type FeatureProperties } from "./attribute-inspector";
+import type { NamespaceGroup } from "@/lib/map-types";
 
-export default function MapShell() {
+interface MapShellProps {
+  namespaces: NamespaceGroup[];
+}
+
+export default function MapShell({ namespaces }: MapShellProps) {
   const [selectedFeature, setSelectedFeature] =
     useState<FeatureProperties | null>(null);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
 
   const handleLayerToggle = useCallback((layerId: string, visible: boolean) => {
     const container = document.querySelector("[data-map-container]") as
@@ -30,12 +34,9 @@ export default function MapShell() {
   );
 
   return (
-    <div
-      ref={mapContainerRef}
-      className="flex flex-1 overflow-hidden relative"
-    >
-      <LayerSidebar onLayerToggle={handleLayerToggle} />
-      <NetworkMap onFeatureSelect={handleFeatureSelect} />
+    <div className="flex flex-1 overflow-hidden relative">
+      <LayerSidebar namespaces={namespaces} onLayerToggle={handleLayerToggle} />
+      <NetworkMap namespaces={namespaces} onFeatureSelect={handleFeatureSelect} />
       <AttributeInspector
         feature={selectedFeature}
         onClose={() => setSelectedFeature(null)}

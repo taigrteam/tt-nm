@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { Map, Popup, type StyleSpecification, type MapMouseEvent, type MapGeoJSONFeature } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { FeatureProperties } from "./attribute-inspector";
+import type { NamespaceGroup, ViewLayer } from "@/lib/map-types";
 
 function escapeHtml(str: string): string {
   return str
@@ -36,29 +37,26 @@ const MAP_STYLE: StyleSpecification = {
 
 const INITIAL_CENTER: [number, number] = [-1.9001, 52.4801];
 const INITIAL_ZOOM = 13;
-const INTERACTIVE_LAYERS = [
-  "primary-substations",
-  "secondary-substations",
-  "overhead-lines",
-  "underground-cables",
-];
 
 interface NetworkMapProps {
+  namespaces: NamespaceGroup[];
   onFeatureSelect: (properties: FeatureProperties | null) => void;
 }
 
-export default function NetworkMap({ onFeatureSelect }: NetworkMapProps) {
+export default function NetworkMap({ namespaces, onFeatureSelect }: NetworkMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
 
-  // Expose toggleLayer for the sidebar
+  // Flatten all view layers for interaction setup
+  const allViews = namespaces.flatMap((ns) => ns.views);
+  const interactiveLayerIds = allViews.map((v) => v.viewName);
+
   const toggleLayer = useCallback((layerId: string, visible: boolean) => {
     const map = mapRef.current;
     if (!map) return;
     map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
   }, []);
 
-  // Store toggleLayer on the container so the parent can call it
   useEffect(() => {
     const el = containerRef.current;
     if (el) {
@@ -80,98 +78,32 @@ export default function NetworkMap({ onFeatureSelect }: NetworkMapProps) {
       pitchWithRotate: false,
     });
 
-    // Disable keyboard rotation (Shift+arrow keys).
     map.keyboard.disableRotation();
 
     map.on("load", () => {
-      map.addSource("network", {
-        type: "vector",
-        tiles: [
-          `${window.location.origin}/api/tiles/network_objects/{z}/{x}/{y}`,
-        ],
-        minzoom: 0,
-        maxzoom: 22,
-      });
+      // Add sources for all views first
+      for (const ns of namespaces) {
+        for (const view of ns.views) {
+          addViewSource(map, view);
+        }
+      }
 
-      // --- Line layers (split for dash support) ---
-
-      map.addLayer({
-        id: "overhead-lines",
-        type: "line",
-        source: "network",
-        "source-layer": "network_objects",
-        filter: [
-          "all",
-          ["==", ["geometry-type"], "LineString"],
-          ["==", ["get", "class_name"], "OverheadLine"],
-        ],
-        paint: {
-          "line-color": "#EC6D26",
-          "line-width": 3,
-          "line-opacity": 0.9,
-          "line-dasharray": [4, 3],
-        },
-      });
-
-      map.addLayer({
-        id: "underground-cables",
-        type: "line",
-        source: "network",
-        "source-layer": "network_objects",
-        filter: [
-          "all",
-          ["==", ["geometry-type"], "LineString"],
-          ["==", ["get", "class_name"], "UndergroundCable"],
-        ],
-        paint: {
-          "line-color": "#7B4DB5",
-          "line-width": 3,
-          "line-opacity": 0.9,
-        },
-      });
-
-      // --- Point layers (primary + secondary substations) ---
-
-      map.addLayer({
-        id: "primary-substations",
-        type: "circle",
-        source: "network",
-        "source-layer": "network_objects",
-        filter: [
-          "all",
-          ["==", ["geometry-type"], "Point"],
-          ["==", ["get", "class_name"], "PrimarySubstation"],
-        ],
-        paint: {
-          "circle-radius": 10,
-          "circle-color": "#EC6D26",
-          "circle-stroke-color": "#05100E",
-          "circle-stroke-width": 1.5,
-        },
-      });
-
-      map.addLayer({
-        id: "secondary-substations",
-        type: "circle",
-        source: "network",
-        "source-layer": "network_objects",
-        filter: [
-          "all",
-          ["==", ["geometry-type"], "Point"],
-          ["==", ["get", "class_name"], "SecondarySubstation"],
-        ],
-        paint: {
-          "circle-radius": 8,
-          "circle-color": "#0D8C80",
-          "circle-stroke-color": "#05100E",
-          "circle-stroke-width": 1.5,
-        },
-      });
+      // Add line layers before circle layers so substations render on top
+      for (const ns of namespaces) {
+        for (const view of ns.views) {
+          if (view.geometryType === "line") addViewLayer(map, view);
+        }
+      }
+      for (const ns of namespaces) {
+        for (const view of ns.views) {
+          if (view.geometryType === "circle") addViewLayer(map, view);
+        }
+      }
 
       // Feature click → inspector
       map.on("click", (e: MapMouseEvent) => {
         const features = map.queryRenderedFeatures(e.point, {
-          layers: INTERACTIVE_LAYERS,
+          layers: interactiveLayerIds,
         });
         if (features.length > 0) {
           onFeatureSelect(features[0].properties as FeatureProperties);
@@ -180,7 +112,7 @@ export default function NetworkMap({ onFeatureSelect }: NetworkMapProps) {
         }
       });
 
-      // Hover tooltip showing identity + class name
+      // Hover tooltip per layer
       const hoverPopup = new Popup({
         closeButton: false,
         closeOnClick: false,
@@ -188,7 +120,7 @@ export default function NetworkMap({ onFeatureSelect }: NetworkMapProps) {
         className: "tt-hover-popup",
       });
 
-      for (const layerId of INTERACTIVE_LAYERS) {
+      for (const layerId of interactiveLayerIds) {
         map.on("mouseenter", layerId, (e: MapMouseEvent & { features?: MapGeoJSONFeature[] }) => {
           map.getCanvas().style.cursor = "pointer";
           const f = e.features?.[0];
@@ -215,9 +147,7 @@ export default function NetworkMap({ onFeatureSelect }: NetworkMapProps) {
         });
 
         map.on("mousemove", layerId, (e: MapMouseEvent) => {
-          if (hoverPopup.isOpen()) {
-            hoverPopup.setLngLat(e.lngLat);
-          }
+          if (hoverPopup.isOpen()) hoverPopup.setLngLat(e.lngLat);
         });
 
         map.on("mouseleave", layerId, () => {
@@ -239,6 +169,8 @@ export default function NetworkMap({ onFeatureSelect }: NetworkMapProps) {
         delete (window as unknown as Record<string, unknown>).__map;
       }
     };
+    // namespaces is stable (from server); onFeatureSelect is useCallback-stable
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onFeatureSelect]);
 
   return (
@@ -248,4 +180,45 @@ export default function NetworkMap({ onFeatureSelect }: NetworkMapProps) {
       className="flex-1 relative"
     />
   );
+}
+
+function addViewSource(map: Map, view: ViewLayer): void {
+  map.addSource(view.viewName, {
+    type: "vector",
+    tiles: [
+      `${window.location.origin}/api/tiles/${view.viewName}/{z}/{x}/{y}`,
+    ],
+    minzoom: 0,
+    maxzoom: 22,
+  });
+}
+
+function addViewLayer(map: Map, view: ViewLayer): void {
+  if (view.geometryType === "line") {
+    map.addLayer({
+      id: view.viewName,
+      type: "line",
+      source: view.viewName,
+      "source-layer": view.viewName,
+      paint: {
+        "line-color": view.color,
+        "line-width": 3,
+        "line-opacity": 0.9,
+        ...(view.dashed ? { "line-dasharray": [4, 3] } : {}),
+      },
+    });
+  } else {
+    map.addLayer({
+      id: view.viewName,
+      type: "circle",
+      source: view.viewName,
+      "source-layer": view.viewName,
+      paint: {
+        "circle-radius": view.radius,
+        "circle-color": view.color,
+        "circle-stroke-color": "#05100E",
+        "circle-stroke-width": 1.5,
+      },
+    });
+  }
 }
