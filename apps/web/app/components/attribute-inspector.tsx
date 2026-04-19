@@ -1,13 +1,10 @@
 "use client";
 
 import { X, Info } from "lucide-react";
-
-export interface FeatureProperties {
-  [key: string]: string | number | boolean | null | undefined;
-}
+import type { SelectedFeature } from "@/lib/map-types";
 
 interface AttributeInspectorProps {
-  feature: FeatureProperties | null;
+  feature: SelectedFeature | null;
   onClose: () => void;
 }
 
@@ -17,7 +14,17 @@ export default function AttributeInspector({
 }: AttributeInspectorProps) {
   if (!feature) return null;
 
-  const entries = Object.entries(feature).filter(
+  const { properties, columnSpecs } = feature;
+
+  // Parse the attributes JSON string that PostGIS serialises into the MVT.
+  const rawAttrs: Record<string, unknown> =
+    typeof properties.attributes === "string"
+      ? (JSON.parse(properties.attributes) as Record<string, unknown>)
+      : {};
+
+  const labelFor = new Map(columnSpecs.map((s) => [s.alias, s.displayName]));
+
+  const entries = Object.entries(rawAttrs).filter(
     ([, v]) => v !== null && v !== undefined && v !== "",
   );
 
@@ -75,9 +82,9 @@ export default function AttributeInspector({
             color: "var(--text)",
           }}
         >
-          {feature.identity ?? "Unknown"}
+          {properties.identity ?? "Unknown"}
         </div>
-        {feature.class_name && (
+        {properties.class_name && (
           <span
             className="mt-1 inline-block px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-widest"
             style={{
@@ -85,7 +92,7 @@ export default function AttributeInspector({
               color: "var(--accent2)",
             }}
           >
-            {feature.class_name}
+            {properties.class_name}
           </span>
         )}
       </div>
@@ -94,36 +101,42 @@ export default function AttributeInspector({
       <div className="flex-1 overflow-y-auto">
         <table className="w-full">
           <tbody>
-            {entries.map(([key, value]) => (
-              <tr
-                key={key}
-                className="transition-colors"
-                style={{ borderBottom: "1px solid var(--border-col)" }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "var(--row-hover)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
-              >
-                <td
-                  className="px-3 py-1.5 text-[0.68rem] font-bold uppercase tracking-[0.1em]"
-                  style={{ color: "var(--text-muted)" }}
+            {entries.map(([key, value]) => {
+              const registeredLabel = labelFor.get(key);
+              return (
+                <tr
+                  key={key}
+                  className="transition-colors"
+                  style={{ borderBottom: "1px solid var(--border-col)" }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "var(--row-hover)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "transparent")
+                  }
                 >
-                  {key}
-                </td>
-                <td
-                  className="px-3 py-1.5 text-right text-xs"
-                  style={{
-                    fontFamily: "'Courier New', monospace",
-                    color: "var(--text)",
-                    fontWeight: 500,
-                  }}
-                >
-                  {String(value)}
-                </td>
-              </tr>
-            ))}
+                  <td
+                    className="px-3 py-1.5 text-[0.68rem] font-bold tracking-[0.1em]"
+                    style={{
+                      color: "var(--text-muted)",
+                      textTransform: registeredLabel ? "uppercase" : "none",
+                    }}
+                  >
+                    {registeredLabel ?? key}
+                  </td>
+                  <td
+                    className="px-3 py-1.5 text-right text-xs"
+                    style={{
+                      fontFamily: "'Courier New', monospace",
+                      color: "var(--text)",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {String(value)}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

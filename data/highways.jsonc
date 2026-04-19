@@ -1,0 +1,126 @@
+// object:
+//    uuid - populate with features.properties.globalid
+//    namespace - fixed to "HIGHWAYS"
+//    identity  - populated from features.properties.toid
+//    class_name - "Node" for node loading, "Link" for link loading  
+//    discriminator    TEXT, - Populated from nodetype for nodes or linkcategory for links 
+//    geo_geometry - populated from features.geometry
+//    sch_geometry - not used - reserved for future use
+//    attributes  - populated from features.properties, each attributes will have a sub element for eache element in properties with the same name    
+//    hash - calulated on load 
+//    valid_from - populated from features.properties.startdate parsing from the input format (which appears to be RFC 1123)
+//    valid_to - populated from features.properties.startdate parsing from the input format (which appears to be RFC 1123)
+
+
+// Example of a Highway Node 
+{
+  "type": "FeatureCollection", // Fixed to indicate this is a collection of spatial features  
+  "crs": {
+    "type": "name",  // fixed to define the coordinate reference system name 
+    "properties": { // The coordinate reference system - WGS 84
+      "name": "EPSG:4326"
+    }
+  },
+  "features": [ // the array of features to load into Object, each feature is an Object 
+    {
+      "type": "Feature", // an individual feature 
+      "id": 14900681, // internal feature identiry 
+      "geometry": { // The geometry that needs to be loaded into the Object geo_geometry field
+        "type": "Point",
+        "coordinates": [
+          -2.0416019664702,
+          55.7562840116025,
+          0
+        ]
+      },
+      "properties": { // properties - this substructure will have all sub elements loaded into attributes with the same name i.e. properties.objectid becomes attributes.objectid etc (for all sub elements)
+        "objectid": 14900681,
+        "nodeid": "dba16273-10da-4f90-893f-e039ddb98957",
+        "nodetype": "R", // used to populate object.discriminator 
+        "junctionnumber1": null,
+        "junctionnumber2": null,
+        "startdate": "Wed, 06 Apr 2022 10:53:21 GMT", // populates object.valid_from 
+        "enddate": null, // populates object.valid_to 
+        "toid": "osgb4000000006220415",  // populates object.identity
+        "globalid": "b476eb64-e019-48f4-9487-d667854cfb2f", // populates object.uuid
+        "created_user": "esriuk_automation_nh",
+        "created_date": "Sun, 19 Apr 2026 02:06:42 GMT",
+        "last_edited_user": "esriuk_automation_nh",
+        "last_edited_date": "Sun, 19 Apr 2026 02:06:42 GMT"
+      }
+    }
+  ]
+}
+
+// Exmample of a highwway Link 
+{
+  "type": "FeatureCollection", // Fixed to indicate this is a collection of spatial features  
+  "crs": {
+    "type": "name", // fixed to define the coordinate reference system name 
+    "properties": { // The coordinate reference system - WGS 84
+      "name": "EPSG:4326" 
+    }
+  },
+  "features": [ // the array of features to load into Object, each feature is an Object
+    {
+      "type": "Feature", // an individual feature 
+      "id": 17185065, // internal feature identiry 
+      "geometry": { // The geometry that needs to be loaded into the Object geo_geometry field
+        "type": "LineString",
+        "coordinates": [
+          [
+            -2.02103836320821,
+            55.746917305227,
+            0
+          ],
+          [
+            -2.02259337205265,
+            55.7474489388357,
+            0
+          ],
+          [
+            -2.02359242826988,
+            55.7477979964908,
+            0
+          ],
+          [
+            -2.02379958496945,
+            55.7479147612749,
+            0
+          ]
+        ]
+      },
+      "properties": { // properties - this substructure will have all sub elements loaded into attributes with the same name i.e. properties.objectid becomes attributes.objectid etc (for all sub elements)
+        "objectid": 17185065,
+        "linkid": "82765052-d7cb-43c3-bd54-d3c9257e6a34",
+        "linkref": "A1/N/DC/A/games.rezoning.matrons",
+        "linkcategory": "A", // populates object.disciminator 
+        "linkdesc": "A1 northbound between A1167 near Berwick-Upon-Tweed (south) and A698",
+        "linkform": "DC",
+        "directionality": "1",
+        "direction": "N",
+        "numberoflanes": 1,
+        "smartmotorway": null,
+        "carriageway": "A",
+        "ownership": "NH",
+        "startgradeseparation": 0,
+        "endgradeseparation": 0,
+        "parentlinkref": null,
+        "srn": "Y",
+        "startnode": "24095067-fce4-468a-950e-f9a0aa05d58d",
+        "endnode": "9607b713-6985-40a8-a45b-a5dededee74e",
+        "operationalstate": "O",
+        "roadname": "A1",
+        "startdate": "Wed, 06 Apr 2022 10:53:21 GMT",  // populates object.valid_from
+        "enddate": null,  // populates object.valid_to
+        "toid": "osgb4000000006289689", // populates object.identity
+        "globalid": "453a9a07-1281-4cbd-9104-70d587d4b34b", // populates object.uuid
+        "created_user": "esriuk_automation_nh",
+        "created_date": "Sun, 19 Apr 2026 02:01:42 GMT",
+        "last_edited_user": "esriuk_automation_nh",
+        "last_edited_date": "Sun, 19 Apr 2026 02:01:42 GMT"
+      }
+    }
+  ]
+}
+

@@ -3,8 +3,8 @@
 import { useState, useCallback } from "react";
 import NetworkMap from "./network-map";
 import LayerSidebar from "./layer-sidebar";
-import AttributeInspector, { type FeatureProperties } from "./attribute-inspector";
-import type { NamespaceGroup } from "@/lib/map-types";
+import AttributeInspector from "./attribute-inspector";
+import type { NamespaceGroup, SelectedFeature } from "@/lib/map-types";
 
 interface MapShellProps {
   namespaces: NamespaceGroup[];
@@ -12,7 +12,7 @@ interface MapShellProps {
 
 export default function MapShell({ namespaces }: MapShellProps) {
   const [selectedFeature, setSelectedFeature] =
-    useState<FeatureProperties | null>(null);
+    useState<SelectedFeature | null>(null);
 
   const handleLayerToggle = useCallback((layerId: string, visible: boolean) => {
     const container = document.querySelector("[data-map-container]") as
@@ -22,12 +22,12 @@ export default function MapShell({ namespaces }: MapShellProps) {
   }, []);
 
   const handleFeatureSelect = useCallback(
-    (properties: FeatureProperties | null) => {
+    (feature: SelectedFeature | null) => {
       setSelectedFeature((prev) => {
-        if (properties && prev && properties.id === prev.id) {
+        if (feature && prev && feature.properties.id === prev.properties.id) {
           return null;
         }
-        return properties;
+        return feature;
       });
     },
     [],

@@ -32,9 +32,15 @@ async function getValidSources(): Promise<Set<string>> {
   return validSourcesCache;
 }
 
-// In-memory rate limiter: per-IP sliding window (1 minute, 300 requests).
+// In-memory rate limiter: per-IP sliding window.
+//
+// Budget calculation: sources × tiles-per-viewport × viewport-changes-per-minute
+//   ≈ 12 sources × 16 tiles × 15 changes = 2,880 → ceiling at 3,000.
+// This handles normal interactive map usage without false positives.
+// Note: in local dev all requests share key "unknown" (no x-forwarded-for),
+// so the budget is effectively per-browser-session rather than per-IP.
 const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX = 300;
+const RATE_LIMIT_MAX = 3_000;
 const requestLog = new Map<string, number[]>();
 
 function isRateLimited(ip: string): boolean {
@@ -42,7 +48,12 @@ function isRateLimited(ip: string): boolean {
   const timestamps = requestLog.get(ip) ?? [];
   const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
   recent.push(now);
-  requestLog.set(ip, recent);
+  // Evict the entry once it empties to prevent unbounded map growth.
+  if (recent.length === 0) {
+    requestLog.delete(ip);
+  } else {
+    requestLog.set(ip, recent);
+  }
   return recent.length > RATE_LIMIT_MAX;
 }
 

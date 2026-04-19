@@ -1,28 +1,26 @@
 -- 07_materialized_views.sql
 -- Materialized views in the network_views schema.
 --
--- Each view is driven by a record in data_dictionary.view_definition and
--- flattens the JSONB attributes column into typed columns based on the
--- attr_definition entries for that class's inheritance lineage.
+-- Every view exposes the standard identity columns plus a single `attributes JSONB`
+-- column that is a direct copy of network_model.object.attributes.
+-- No per-class typed columns are present — the tile function serialises `attributes`
+-- as a JSON string inside the MVT, and the frontend inspector renders all keys,
+-- using data_dictionary.view_column_spec display_name values where registered.
 --
--- Attribute lineage (resolved via recursive CTE at design time):
---   OverheadLine    ← Conductor:  voltage_kv, length_m, cost_data
---   UndergroundCable← Conductor:  voltage_kv, length_m, cost_data
---   PrimarySubstation   ← Substation: voltage_kv, rating_mva, cost_data, status
---   SecondarySubstation ← Substation: voltage_kv, rating_mva, cost_data, status
+-- RBAC: cost_data is a sensitive field in the ELECTRICITY namespace.
+-- It is NOT stripped here (the full blob is stored in the view) — the tile
+-- function applies the CASE WHEN user_role = 'admin' logic at serve time.
 --
 -- Common columns on every view:
 --   uuid, namespace, identity, class_name, discriminator,
---   geo_geometry, valid_from, valid_to, hash
+--   geo_geometry, valid_from, valid_to, hash, attributes
 --
--- Refresh: use scripts/refresh-views.sh or call REFRESH MATERIALIZED VIEW
--- CONCURRENTLY on each view. Indexes on geo_geometry support CONCURRENTLY.
---
--- Active-record filter (valid_to IS NULL) is baked in — these views always
--- represent the current state of the network. Point-in-time queries use
--- the base network_model.object table directly.
+-- Refresh: scripts/refresh-views.sh or REFRESH MATERIALIZED VIEW CONCURRENTLY.
+-- Drop/recreate is used so this file is safe to re-run against a live DB.
 
 -- ── OVERHEAD LINES ────────────────────────────────────────────────────────────
+
+DROP MATERIALIZED VIEW IF EXISTS network_views.vw_overhead_line CASCADE;
 
 CREATE MATERIALIZED VIEW network_views.vw_overhead_line AS
 SELECT
@@ -35,9 +33,7 @@ SELECT
     o.valid_from,
     o.valid_to,
     o.hash,
-    (o.attributes->>'voltage_kv')::numeric AS voltage_kv,
-    (o.attributes->>'length_m')::numeric   AS length_m,
-    (o.attributes->>'cost_data')::numeric  AS cost_data
+    o.attributes
 FROM network_model.object o
 WHERE o.namespace  = 'ELECTRICITY'
   AND o.class_name = 'OverheadLine'
@@ -48,6 +44,8 @@ CREATE INDEX ON network_views.vw_overhead_line USING GIST (geo_geometry);
 ANALYZE network_views.vw_overhead_line;
 
 -- ── UNDERGROUND CABLES ────────────────────────────────────────────────────────
+
+DROP MATERIALIZED VIEW IF EXISTS network_views.vw_underground_cable CASCADE;
 
 CREATE MATERIALIZED VIEW network_views.vw_underground_cable AS
 SELECT
@@ -60,9 +58,7 @@ SELECT
     o.valid_from,
     o.valid_to,
     o.hash,
-    (o.attributes->>'voltage_kv')::numeric AS voltage_kv,
-    (o.attributes->>'length_m')::numeric   AS length_m,
-    (o.attributes->>'cost_data')::numeric  AS cost_data
+    o.attributes
 FROM network_model.object o
 WHERE o.namespace  = 'ELECTRICITY'
   AND o.class_name = 'UndergroundCable'
@@ -73,6 +69,8 @@ CREATE INDEX ON network_views.vw_underground_cable USING GIST (geo_geometry);
 ANALYZE network_views.vw_underground_cable;
 
 -- ── PRIMARY SUBSTATIONS ───────────────────────────────────────────────────────
+
+DROP MATERIALIZED VIEW IF EXISTS network_views.vw_primary_substation CASCADE;
 
 CREATE MATERIALIZED VIEW network_views.vw_primary_substation AS
 SELECT
@@ -85,10 +83,7 @@ SELECT
     o.valid_from,
     o.valid_to,
     o.hash,
-    (o.attributes->>'voltage_kv')::numeric AS voltage_kv,
-    (o.attributes->>'rating_mva')::numeric AS rating_mva,
-    (o.attributes->>'cost_data')::numeric  AS cost_data,
-    (o.attributes->>'status')             AS status
+    o.attributes
 FROM network_model.object o
 WHERE o.namespace  = 'ELECTRICITY'
   AND o.class_name = 'PrimarySubstation'
@@ -99,6 +94,8 @@ CREATE INDEX ON network_views.vw_primary_substation USING GIST (geo_geometry);
 ANALYZE network_views.vw_primary_substation;
 
 -- ── SECONDARY SUBSTATIONS ─────────────────────────────────────────────────────
+
+DROP MATERIALIZED VIEW IF EXISTS network_views.vw_secondary_substation CASCADE;
 
 CREATE MATERIALIZED VIEW network_views.vw_secondary_substation AS
 SELECT
@@ -111,10 +108,7 @@ SELECT
     o.valid_from,
     o.valid_to,
     o.hash,
-    (o.attributes->>'voltage_kv')::numeric AS voltage_kv,
-    (o.attributes->>'rating_mva')::numeric AS rating_mva,
-    (o.attributes->>'cost_data')::numeric  AS cost_data,
-    (o.attributes->>'status')             AS status
+    o.attributes
 FROM network_model.object o
 WHERE o.namespace  = 'ELECTRICITY'
   AND o.class_name = 'SecondarySubstation'

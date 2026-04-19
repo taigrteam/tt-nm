@@ -1,7 +1,7 @@
 import NavBar from "@/app/components/nav-bar";
 import MapShell from "@/app/components/map-shell";
 import { sql } from "@/lib/db";
-import type { NamespaceGroup, ViewLayer } from "@/lib/map-types";
+import type { ColumnSpec, NamespaceGroup, ViewLayer } from "@/lib/map-types";
 
 interface ViewDefinitionRow {
   namespace: string;
@@ -14,25 +14,45 @@ interface ViewDefinitionRow {
   map_dashed: boolean;
 }
 
+interface ColumnSpecRow {
+  view_name: string;
+  alias: string;
+  display_name: string;
+}
+
 async function getNamespaceGroups(): Promise<NamespaceGroup[]> {
-  const rows = await sql<ViewDefinitionRow[]>`
-    SELECT
-      n.namespace,
-      n.display_name  AS display_name_ns,
-      vd.view_name,
-      vd.display_name AS display_name_view,
-      vd.map_geometry_type,
-      vd.map_color,
-      vd.map_radius,
-      vd.map_dashed
-    FROM data_dictionary.namespace n
-    JOIN data_dictionary.view_definition vd
-      ON vd.namespace = n.namespace
-    WHERE n.viewable = TRUE
-      AND vd.show_on_map = TRUE
-      AND vd.valid_to IS NULL
-    ORDER BY n.namespace, vd.display_name
-  `;
+  const [rows, specRows] = await Promise.all([
+    sql<ViewDefinitionRow[]>`
+      SELECT
+        n.namespace,
+        n.display_name  AS display_name_ns,
+        vd.view_name,
+        vd.display_name AS display_name_view,
+        vd.map_geometry_type,
+        vd.map_color,
+        vd.map_radius,
+        vd.map_dashed
+      FROM data_dictionary.namespace n
+      JOIN data_dictionary.view_definition vd
+        ON vd.namespace = n.namespace
+      WHERE n.viewable = TRUE
+        AND vd.show_on_map = TRUE
+        AND vd.valid_to IS NULL
+      ORDER BY n.namespace, vd.display_name
+    `,
+    sql<ColumnSpecRow[]>`
+      SELECT view_name, alias, display_name
+      FROM data_dictionary.view_column_spec
+      WHERE valid_to IS NULL
+      ORDER BY view_name, alias
+    `,
+  ]);
+
+  const specsMap = new Map<string, ColumnSpec[]>();
+  for (const row of specRows) {
+    if (!specsMap.has(row.view_name)) specsMap.set(row.view_name, []);
+    specsMap.get(row.view_name)!.push({ alias: row.alias, displayName: row.display_name });
+  }
 
   const grouped = new Map<string, NamespaceGroup>();
   for (const row of rows) {
@@ -50,6 +70,7 @@ async function getNamespaceGroups(): Promise<NamespaceGroup[]> {
       color: row.map_color,
       radius: row.map_radius ?? 8,
       dashed: row.map_dashed,
+      columnSpecs: specsMap.get(row.view_name) ?? [],
     };
     grouped.get(row.namespace)!.views.push(view);
   }

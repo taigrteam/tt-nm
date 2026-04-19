@@ -3,8 +3,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { Map, Popup, type StyleSpecification, type MapMouseEvent, type MapGeoJSONFeature } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { FeatureProperties } from "./attribute-inspector";
-import type { NamespaceGroup, ViewLayer } from "@/lib/map-types";
+import type { NamespaceGroup, SelectedFeature, ViewLayer } from "@/lib/map-types";
 
 function escapeHtml(str: string): string {
   return str
@@ -40,7 +39,7 @@ const INITIAL_ZOOM = 13;
 
 interface NetworkMapProps {
   namespaces: NamespaceGroup[];
-  onFeatureSelect: (properties: FeatureProperties | null) => void;
+  onFeatureSelect: (feature: SelectedFeature | null) => void;
 }
 
 export default function NetworkMap({ namespaces, onFeatureSelect }: NetworkMapProps) {
@@ -106,7 +105,13 @@ export default function NetworkMap({ namespaces, onFeatureSelect }: NetworkMapPr
           layers: interactiveLayerIds,
         });
         if (features.length > 0) {
-          onFeatureSelect(features[0].properties as FeatureProperties);
+          const feature = features[0];
+          const viewName = feature.layer.id;
+          const view = allViews.find((v) => v.viewName === viewName);
+          onFeatureSelect({
+            properties: feature.properties as SelectedFeature["properties"],
+            columnSpecs: view?.columnSpecs ?? [],
+          });
         } else {
           onFeatureSelect(null);
         }
@@ -132,15 +137,8 @@ export default function NetworkMap({ namespaces, onFeatureSelect }: NetworkMapPr
             .join(" — ");
           if (!title) return;
 
-          const details: string[] = [];
-          if (props.voltage_kv) details.push(`${escapeHtml(String(props.voltage_kv))} kV`);
-          if (props.status) details.push(escapeHtml(String(props.status)));
-          if (props.rating_mva) details.push(`${escapeHtml(String(props.rating_mva))} MVA`);
-          if (props.length_m) details.push(`${escapeHtml(String(props.length_m))} m`);
-
           const html = `<div style="font-family:Roboto,sans-serif;">
             <div style="font-size:0.75rem;font-weight:700;color:var(--text);">${title}</div>
-            ${details.length ? `<div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${details.join(" · ")}</div>` : ""}
           </div>`;
 
           hoverPopup.setLngLat(e.lngLat).setHTML(html).addTo(map);

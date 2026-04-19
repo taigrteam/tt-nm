@@ -8,8 +8,14 @@
 -- The source-layer name in the MVT matches the function/view name so that
 -- MapLibre source-layer references in the frontend align automatically.
 --
+-- Attributes: every tile includes an `attributes` field containing the full
+-- JSONB blob from the materialized view, serialised as a JSON string inside
+-- the MVT. The frontend inspector parses this string and displays all keys.
+--
 -- RBAC: the `user_role` key in query_params controls cost_data redaction.
--- The tile proxy injects this from the server-side session — never from the client.
+-- Sensitive fields are stripped from the JSONB via `attributes - 'cost_data'`
+-- for viewer-role requests. The tile proxy injects user_role from the
+-- server-side session — never from the client.
 --
 -- Note: PL/pgSQL function bodies are not validated at CREATE time, so these
 -- functions can be created before 07_materialized_views.sql runs.
@@ -42,13 +48,14 @@ BEGIN
     SELECT ST_AsMVT(tile, 'vw_overhead_line') INTO result
     FROM (
         SELECT
-            v.uuid::text                         AS id,
+            v.uuid::text  AS id,
             v.identity,
             v.class_name,
             v.discriminator,
-            v.voltage_kv,
-            v.length_m,
-            CASE WHEN user_role = 'admin' THEN v.cost_data ELSE NULL END AS cost_data,
+            CASE WHEN user_role = 'admin'
+                 THEN v.attributes::text
+                 ELSE (v.attributes - 'cost_data')::text
+            END           AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
@@ -90,13 +97,14 @@ BEGIN
     SELECT ST_AsMVT(tile, 'vw_underground_cable') INTO result
     FROM (
         SELECT
-            v.uuid::text                         AS id,
+            v.uuid::text  AS id,
             v.identity,
             v.class_name,
             v.discriminator,
-            v.voltage_kv,
-            v.length_m,
-            CASE WHEN user_role = 'admin' THEN v.cost_data ELSE NULL END AS cost_data,
+            CASE WHEN user_role = 'admin'
+                 THEN v.attributes::text
+                 ELSE (v.attributes - 'cost_data')::text
+            END           AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
@@ -138,14 +146,14 @@ BEGIN
     SELECT ST_AsMVT(tile, 'vw_primary_substation') INTO result
     FROM (
         SELECT
-            v.uuid::text                         AS id,
+            v.uuid::text  AS id,
             v.identity,
             v.class_name,
             v.discriminator,
-            v.voltage_kv,
-            v.rating_mva,
-            v.status,
-            CASE WHEN user_role = 'admin' THEN v.cost_data ELSE NULL END AS cost_data,
+            CASE WHEN user_role = 'admin'
+                 THEN v.attributes::text
+                 ELSE (v.attributes - 'cost_data')::text
+            END           AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
@@ -187,14 +195,14 @@ BEGIN
     SELECT ST_AsMVT(tile, 'vw_secondary_substation') INTO result
     FROM (
         SELECT
-            v.uuid::text                         AS id,
+            v.uuid::text  AS id,
             v.identity,
             v.class_name,
             v.discriminator,
-            v.voltage_kv,
-            v.rating_mva,
-            v.status,
-            CASE WHEN user_role = 'admin' THEN v.cost_data ELSE NULL END AS cost_data,
+            CASE WHEN user_role = 'admin'
+                 THEN v.attributes::text
+                 ELSE (v.attributes - 'cost_data')::text
+            END           AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds

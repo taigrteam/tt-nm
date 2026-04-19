@@ -18,3 +18,27 @@ postgres:
     vw_secondary_substation:
       schema: network_views
       function: vw_secondary_substation
+    vw_motorways:
+      schema: network_views
+      function: vw_motorways
+    vw_a_roads:
+      schema: network_views
+      function: vw_a_roads
+    vw_b_roads:
+      schema: network_views
+      function: vw_b_roads
+    vw_unclassified_roads:
+      schema: network_views
+      function: vw_unclassified_roads
+    vw_junction:
+      schema: network_views
+      function: vw_junction
+    vw_property_change:
+      schema: network_views
+      function: vw_property_change
+    vw_reference:
+      schema: network_views
+      function: vw_reference
+    vw_road_end:
+      schema: network_views
+      function: vw_road_end
