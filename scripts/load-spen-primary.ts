@@ -1,13 +1,13 @@
 #!/usr/bin/env tsx
 /**
- * load-spen-primary.ts — Load SPEN primary polygon GeoJSON into network_model.object.
+ * load-spen-primary.ts — Load SPEN primary area GeoJSON into network_model.object.
  *
  * Usage:
- *   tsx scripts/load-spen-primary.ts
+ *   tsx scripts/load-spen-primary.ts --file data/SPD_primary.geojson --prefix SPD
+ *   tsx scripts/load-spen-primary.ts --file data/SPM_primary.geojson --prefix SPM
  *
- * Reads data/SPEN_primary.geojson from the repo root.
  * DATABASE_URL is read from the environment or from apps/web/.env.local.
- * Existing records (matched by namespace + identity + valid_to) are silently skipped.
+ * Existing records (matched by namespace + identity, valid_to IS NULL) are silently skipped.
  */
 
 import { createHash } from 'node:crypto';
@@ -16,15 +16,28 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
 
-const SCRIPT_DIR  = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT   = dirname(SCRIPT_DIR);
-const ENV_FILE    = resolve(REPO_ROOT, 'apps/web/.env.local');
-const INPUT_FILE  = resolve(REPO_ROOT, 'data/SPEN_primary.geojson');
-const NAMESPACE   = 'ELECTRICITY';
-const CLASS_NAME  = 'PrimaryPolygon';
+const SCRIPT_DIR    = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT     = dirname(SCRIPT_DIR);
+const ENV_FILE      = resolve(REPO_ROOT, 'apps/web/.env.local');
+const NAMESPACE     = 'ELECTRICITY';
+const CLASS_NAME    = 'PrimaryArea';
 const DISCRIMINATOR = 'Primary';
-const BATCH_SIZE  = 100;
-const IDENTITY_PREFIX = 'SPEN-PRIMARY-POLYGON#';
+const BATCH_SIZE    = 100;
+
+// ── Argument parsing ──────────────────────────────────────────────────────────
+
+function getArg(flag: string): string {
+  const idx = process.argv.indexOf(flag);
+  if (idx === -1 || !process.argv[idx + 1]) {
+    console.error(`ERROR: ${flag} <value> is required`);
+    console.error('Usage: tsx scripts/load-spen-primary.ts --file <path> --prefix <prefix>');
+    process.exit(1);
+  }
+  return process.argv[idx + 1];
+}
+
+const inputFile      = resolve(REPO_ROOT, getArg('--file'));
+const identityPrefix = 'PP-' + getArg('--prefix') + '-';
 
 // ── DATABASE_URL resolution ───────────────────────────────────────────────────
 
@@ -59,13 +72,10 @@ async function readTextFile(filePath: string): Promise<string> {
 // ── Batch insert ──────────────────────────────────────────────────────────────
 
 type RowPayload = {
-  namespace: string;
-  identity: string;
-  class_name: string;
-  discriminator: string;
+  identity:     string;
   geo_geometry: string;
-  attributes: Record<string, unknown>;
-  hash: string;
+  attributes:   Record<string, unknown>;
+  hash:         string;
 };
 
 async function insertBatch(sql: postgres.Sql, rows: RowPayload[]): Promise<number> {
@@ -77,17 +87,21 @@ async function insertBatch(sql: postgres.Sql, rows: RowPayload[]): Promise<numbe
         INSERT INTO network_model.object
           (namespace, identity, class_name, discriminator,
            geo_geometry, sch_geometry, attributes, hash)
-        VALUES (
-          ${row.namespace},
+        SELECT
+          ${NAMESPACE},
           ${row.identity},
-          ${row.class_name},
-          ${row.discriminator},
+          ${CLASS_NAME},
+          ${DISCRIMINATOR},
           ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON(${row.geo_geometry}), 4326)),
           NULL,
           ${sql.json(row.attributes)},
           ${row.hash}
+        WHERE NOT EXISTS (
+          SELECT 1 FROM network_model.object
+          WHERE namespace = ${NAMESPACE}
+            AND identity  = ${row.identity}
+            AND valid_to IS NULL
         )
-        ON CONFLICT DO NOTHING
         RETURNING uuid
       `;
       inserted += result.length;
@@ -102,9 +116,9 @@ async function main() {
   const dbUrl = await getDatabaseUrl();
   const sql   = postgres(dbUrl, { max: 1 });
 
-  console.log(`Reading ${INPUT_FILE} ...`);
+  console.log(`Reading ${inputFile} ...`);
 
-  const raw = await readTextFile(INPUT_FILE);
+  const raw = await readTextFile(inputFile);
 
   const collection = JSON.parse(raw) as { features?: unknown[] };
   if (!Array.isArray(collection.features)) {
@@ -118,7 +132,7 @@ async function main() {
   }>;
 
   const total = features.length;
-  console.log(`Found ${total} features. Loading ...`);
+  console.log(`Found ${total} features. Loading as ${CLASS_NAME} (prefix: ${identityPrefix}) ...`);
 
   let totalAttempted = 0;
   let totalInserted  = 0;
@@ -127,13 +141,10 @@ async function main() {
     const batch = features.slice(i, i + BATCH_SIZE);
 
     const rows: RowPayload[] = batch.map(feature => {
-      const props = feature.properties ?? {};
+      const props    = feature.properties ?? {};
       const objectId = String(props.objectid ?? '');
       return {
-        namespace:    NAMESPACE,
-        identity:     IDENTITY_PREFIX + objectId,
-        class_name:   CLASS_NAME,
-        discriminator: DISCRIMINATOR,
+        identity:     identityPrefix + objectId,
         geo_geometry: JSON.stringify(feature.geometry),
         attributes:   props,
         hash:         createHash('md5').update(JSON.stringify(props)).digest('hex'),
@@ -155,9 +166,7 @@ async function main() {
 
   const skipped = totalAttempted - totalInserted;
   console.log('');
-  console.log(
-    `Done: ${totalAttempted} attempted, ${totalInserted} inserted, ${skipped} skipped.`,
-  );
+  console.log(`Done: ${totalAttempted} attempted, ${totalInserted} inserted, ${skipped} skipped.`);
 }
 
 main().catch(err => {

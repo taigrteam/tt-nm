@@ -208,6 +208,9 @@ CREATE INDEX idx_view_col_active
     ON data_dictionary.view_column_spec (namespace, view_name) WHERE valid_to IS NULL;
 
 -- network_model.object
+-- NOTE: A partial UNIQUE index on (namespace, identity) WHERE valid_to IS NULL would be
+-- the correct enforcement here, but the HIGHWAYS load produces duplicate/empty identities
+-- that must be fixed before it can be created. Load scripts enforce uniqueness via NOT EXISTS.
 CREATE INDEX idx_object_active_identity
     ON object (namespace, identity) WHERE valid_to IS NULL;
 -- Class-based filtering (e.g. show only OverheadLine objects on a layer)

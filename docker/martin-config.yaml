@@ -42,6 +42,6 @@ postgres:
     vw_road_end:
       schema: network_views
       function: vw_road_end
-    vw_primary_polygons:
+    vw_primary_areas:
       schema: network_views
-      function: vw_primary_polygons
+      function: vw_primary_areas

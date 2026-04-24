@@ -34,8 +34,8 @@ const MAP_STYLE: StyleSpecification = {
   ],
 };
 
-const INITIAL_CENTER: [number, number] = [-1.9001, 52.4801];
-const INITIAL_ZOOM = 13;
+const INITIAL_CENTER: [number, number] = [-3.5, 54.6];
+const INITIAL_ZOOM = 7;
 
 interface NetworkMapProps {
   namespaces: NamespaceGroup[];
@@ -176,30 +176,39 @@ export default function NetworkMap({ namespaces, onFeatureSelect, selectedFeatur
       });
 
       for (const layerId of interactiveLayerIds) {
-        map.on("mouseenter", layerId, (e: MapMouseEvent & { features?: MapGeoJSONFeature[] }) => {
+        let lastFeatureId: unknown = undefined;
+
+        map.on("mouseenter", layerId, () => {
           map.getCanvas().style.cursor = "pointer";
-          const f = e.features?.[0];
-          if (!f) return;
-          const props = f.properties as Record<string, unknown>;
-          const title = [props.identity, props.class_name]
-            .filter(Boolean)
-            .map((v) => escapeHtml(String(v)))
-            .join(" — ");
-          if (!title) return;
-
-          const html = `<div style="font-family:Roboto,sans-serif;">
-            <div style="font-size:0.75rem;font-weight:700;color:var(--text);">${title}</div>
-          </div>`;
-
-          hoverPopup.setLngLat(e.lngLat).setHTML(html).addTo(map);
         });
 
-        map.on("mousemove", layerId, (e: MapMouseEvent) => {
-          if (hoverPopup.isOpen()) hoverPopup.setLngLat(e.lngLat);
+        map.on("mousemove", layerId, (e: MapMouseEvent & { features?: MapGeoJSONFeature[] }) => {
+          const f = e.features?.[0];
+          if (!f) return;
+
+          // Only rebuild the popup HTML when the feature under the cursor changes.
+          const featureId = (f.properties as Record<string, unknown>)?.id ?? f.id;
+          if (featureId !== lastFeatureId) {
+            lastFeatureId = featureId;
+            const props = f.properties as Record<string, unknown>;
+            const title = [props.identity, props.class_name]
+              .filter(Boolean)
+              .map((v) => escapeHtml(String(v)))
+              .join(" — ");
+            if (!title) { hoverPopup.remove(); return; }
+            const html = `<div style="font-family:Roboto,sans-serif;">
+              <div style="font-size:0.75rem;font-weight:700;color:var(--text);">${title}</div>
+            </div>`;
+            hoverPopup.setHTML(html);
+            if (!hoverPopup.isOpen()) hoverPopup.addTo(map);
+          }
+
+          hoverPopup.setLngLat(e.lngLat);
         });
 
         map.on("mouseleave", layerId, () => {
           map.getCanvas().style.cursor = "";
+          lastFeatureId = undefined;
           hoverPopup.remove();
         });
       }

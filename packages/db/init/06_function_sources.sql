@@ -180,9 +180,9 @@ BEGIN
 END;
 $$;
 
--- ── PRIMARY POLYGONS ──────────────────────────────────────────────────────────
+-- ── PRIMARY AREAS ─────────────────────────────────────────────────────────────
 
-CREATE OR REPLACE FUNCTION network_views.vw_primary_polygons(
+CREATE OR REPLACE FUNCTION network_views.vw_primary_areas(
     z            integer,
     x            integer,
     y            integer,
@@ -199,7 +199,7 @@ DECLARE
 BEGIN
     bounds := ST_TileEnvelope(z, x, y);
 
-    SELECT ST_AsMVT(tile, 'vw_primary_polygons') INTO result
+    SELECT ST_AsMVT(tile, 'vw_primary_areas') INTO result
     FROM (
         SELECT
             v.uuid::text        AS id,
@@ -211,7 +211,7 @@ BEGIN
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
             ) AS geom
-        FROM network_views.vw_primary_polygons v
+        FROM network_views.vw_primary_areas v
         WHERE ST_Intersects(v.geo_geometry, ST_Transform(bounds, 4326))
     ) AS tile
     WHERE tile.geom IS NOT NULL;
