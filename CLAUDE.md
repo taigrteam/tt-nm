@@ -8,7 +8,7 @@ This file is read by Claude Code at the start of every session. Follow all instr
 
 A spatial network modelling and visualisation platform for taigrteam. It models physical/logical networks (e.g. electrical grids) as a property graph in PostgreSQL/PostGIS and renders them on an interactive map via MapLibre GL JS v5. The primary concern is accurate network representation and real-time visualisation with role-based attribute security.
 
-**DDL reference:** `packages/db/init/` contains the authoritative SQL (extensions, both schemas, seed data, function sources).
+**DDL reference:** `packages/db/init/` contains the authoritative SQL (extensions, both schemas, seed data, function sources). These scripts are applied manually to the native WSL2 PostgreSQL instance — they are no longer run via Docker entrypoint.
 
 ---
 
@@ -30,7 +30,7 @@ tt-nm/
 │       └── types/next-auth.d.ts     # Session type augmentation (session.user.role)
 ├── packages/
 │   └── db/
-│       └── init/                    # Postgres init SQL (runs at container start)
+│       └── init/                    # Postgres init SQL (applied manually to native WSL2 instance)
 │           ├── 01_extensions.sql    # postgis, pgrouting
 │           ├── 02_schemas.sql       # CREATE SCHEMA iam / network_model
 │           ├── 03_iam_ddl.sql
@@ -38,9 +38,9 @@ tt-nm/
 │           ├── 05_seed.sql          # Roles, test user, sample network objects
 │           └── 06_function_sources.sql  # PostGIS function sources for Martin
 ├── docker/
-│   ├── Dockerfile.db                # PostgreSQL 17 + PostGIS image
+│   ├── Dockerfile.db                # PostgreSQL 17 + PostGIS image (docker-db profile only — not default)
 │   └── martin-config.yaml           # Martin tile server config
-├── docker-compose.yml               # db + martin (Martin has NO host port mapping)
+├── docker-compose.yml               # Martin only by default; db service is behind --profile docker-db
 └── CLAUDE.md
 ```
 
@@ -63,7 +63,7 @@ There is **no** `apps/api`. Next.js Route Handlers handle all server-side logic 
 | Client-side spatial | Turf.js | Buffers, intersections, distance |
 | Icons | Lucide React | GIS toolbar icons |
 
-STRICT: Do not use Vercel Storage tools. Database is local PostgreSQL in Docker only.
+STRICT: Do not use Vercel Storage tools. Database is native PostgreSQL running directly on WSL2 (not in Docker). Martin (tile server) runs in Docker and connects to it via `host.docker.internal`.
 
 ---
 
@@ -288,6 +288,6 @@ OSM attribution (`© OpenStreetMap contributors`) must be visible on the map at 
 - **Validate at boundaries.** Use Zod to validate tile coordinates (`z`, `x`, `y`) and any incoming GeoJSON. Do not validate internal function-to-function calls.
 - **No `any` in TypeScript.** Type the Drizzle schema, the session augmentation, and the postgres.js query results.
 - **Environment variables.** Never hardcode connection strings, secrets, or URLs. Use `.env.local` (gitignored). Required vars: `DATABASE_URL`, `MARTIN_INTERNAL_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_MICROSOFT_ENTRA_ID_ID`, `AUTH_MICROSOFT_ENTRA_ID_SECRET`, `AUTH_MICROSOFT_ENTRA_ID_ISSUER`.
-- **Docker compose.** The `martin` service must never have a `ports` mapping in `docker-compose.yml`. Local dev access to Martin (if needed) goes in `docker-compose.override.yml`, which is gitignored. The `postgres` service exposes port 5432 to the host for local dev only.
+- **Docker compose.** Only Martin runs in Docker by default. PostgreSQL runs natively on WSL2 at `localhost:5432` — do not start the `db` Docker service unless explicitly testing the Dockerised DB path (`--profile docker-db`). The `martin` service must never have a `ports` mapping in `docker-compose.yml`. Local dev access to Martin (if needed) goes in `docker-compose.override.yml`, which is gitignored. Martin reaches native Postgres via `host.docker.internal:5432` (mapped in `extra_hosts`).
 - **All components must be containerisable.** Next.js runs on the host during local development, but must remain container-ready at all times: no hardcoded host paths, no assumptions about the local filesystem, all config via environment variables. Adding a `Dockerfile` for the web app to `docker-compose.yml` must require no code changes.
 - **No speculative features.** Build exactly what is asked. Do not add error boundaries, loading states, or utility helpers that are not needed for the task.

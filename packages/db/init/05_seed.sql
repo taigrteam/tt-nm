@@ -167,8 +167,9 @@ INSERT INTO data_dictionary.view_column_spec
 VALUES
   ('ELECTRICITY', 'vw_primary_polygons', 'objectid',            'objectid',            'Object ID',               'text'),
   ('ELECTRICITY', 'vw_primary_polygons', 'primary',             'primary',             'Primary Area',            'text'),
+  ('ELECTRICITY', 'vw_primary_polygons', 'psgroup',             'psgroup',             'Primary Name',            'text'),
   ('ELECTRICITY', 'vw_primary_polygons', 'lv_reading_coverage', 'lv_reading_coverage', 'LV Reading Coverage (%)', 'numeric'),
-  ('ELECTRICITY', 'vw_primary_polygons', 'geo_point_2d',        'geo_point_2d',        'Centre Point',            'text');
+  ('ELECTRICITY', 'vw_primary_polygons', 'geo_point_2d',        'geo_point_2d',        'Geo Point',               'text');
 
 -- ─── NETWORK OBJECTS ─────────────────────────────────────────────────────────
 -- All geometry: WGS84, SRID 4326. Coordinates: POINT(longitude latitude).

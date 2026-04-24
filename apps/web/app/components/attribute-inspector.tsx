@@ -46,7 +46,8 @@ export default function AttributeInspector({
   }, []);
 
   const handleCopy = (e: React.MouseEvent, value: unknown) => {
-    void navigator.clipboard.writeText(String(value)).catch(() => undefined);
+    const text = typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
+    void navigator.clipboard.writeText(text).catch(() => undefined);
     if (hideTimer.current) clearTimeout(hideTimer.current);
     if (removeTimer.current) clearTimeout(removeTimer.current);
     setToast({ x: e.clientX, y: e.clientY, visible: true });
@@ -232,7 +233,7 @@ export default function AttributeInspector({
                         textOverflow: "ellipsis",
                       }}
                     >
-                      {String(value)}
+                      {typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}
                     </td>
                   </tr>
                 );
