@@ -12,10 +12,10 @@
 -- JSONB blob from the materialized view, serialised as a JSON string inside
 -- the MVT. The frontend inspector parses this string and displays all keys.
 --
--- RBAC: the `user_role` key in query_params controls cost_data redaction.
--- Sensitive fields are stripped from the JSONB via `attributes - 'cost_data'`
--- for viewer-role requests. The tile proxy injects user_role from the
--- server-side session — never from the client.
+-- RBAC: disabled for now — the full attributes blob is passed through without
+-- filtering. The query_params parameter is kept in all function signatures so
+-- role-based redaction can be re-enabled later without changing the Martin
+-- config or tile proxy.
 --
 -- Note: PL/pgSQL function bodies are not validated at CREATE time, so these
 -- functions can be created before 07_materialized_views.sql runs.
@@ -34,28 +34,19 @@ STABLE
 PARALLEL SAFE
 AS $$
 DECLARE
-    bounds    geometry;
-    user_role text;
-    result    bytea;
+    bounds  geometry;
+    result  bytea;
 BEGIN
-    user_role := COALESCE(query_params->>'user_role', 'viewer');
-    IF user_role NOT IN ('admin', 'viewer') THEN
-        user_role := 'viewer';
-    END IF;
-
     bounds := ST_TileEnvelope(z, x, y);
 
     SELECT ST_AsMVT(tile, 'vw_overhead_line') INTO result
     FROM (
         SELECT
-            v.uuid::text  AS id,
+            v.uuid::text        AS id,
             v.identity,
             v.class_name,
             v.discriminator,
-            CASE WHEN user_role = 'admin'
-                 THEN v.attributes::text
-                 ELSE (v.attributes - 'cost_data')::text
-            END           AS attributes,
+            v.attributes::text  AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
@@ -83,28 +74,19 @@ STABLE
 PARALLEL SAFE
 AS $$
 DECLARE
-    bounds    geometry;
-    user_role text;
-    result    bytea;
+    bounds  geometry;
+    result  bytea;
 BEGIN
-    user_role := COALESCE(query_params->>'user_role', 'viewer');
-    IF user_role NOT IN ('admin', 'viewer') THEN
-        user_role := 'viewer';
-    END IF;
-
     bounds := ST_TileEnvelope(z, x, y);
 
     SELECT ST_AsMVT(tile, 'vw_underground_cable') INTO result
     FROM (
         SELECT
-            v.uuid::text  AS id,
+            v.uuid::text        AS id,
             v.identity,
             v.class_name,
             v.discriminator,
-            CASE WHEN user_role = 'admin'
-                 THEN v.attributes::text
-                 ELSE (v.attributes - 'cost_data')::text
-            END           AS attributes,
+            v.attributes::text  AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
@@ -132,28 +114,19 @@ STABLE
 PARALLEL SAFE
 AS $$
 DECLARE
-    bounds    geometry;
-    user_role text;
-    result    bytea;
+    bounds  geometry;
+    result  bytea;
 BEGIN
-    user_role := COALESCE(query_params->>'user_role', 'viewer');
-    IF user_role NOT IN ('admin', 'viewer') THEN
-        user_role := 'viewer';
-    END IF;
-
     bounds := ST_TileEnvelope(z, x, y);
 
     SELECT ST_AsMVT(tile, 'vw_primary_substation') INTO result
     FROM (
         SELECT
-            v.uuid::text  AS id,
+            v.uuid::text        AS id,
             v.identity,
             v.class_name,
             v.discriminator,
-            CASE WHEN user_role = 'admin'
-                 THEN v.attributes::text
-                 ELSE (v.attributes - 'cost_data')::text
-            END           AS attributes,
+            v.attributes::text  AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
@@ -181,28 +154,19 @@ STABLE
 PARALLEL SAFE
 AS $$
 DECLARE
-    bounds    geometry;
-    user_role text;
-    result    bytea;
+    bounds  geometry;
+    result  bytea;
 BEGIN
-    user_role := COALESCE(query_params->>'user_role', 'viewer');
-    IF user_role NOT IN ('admin', 'viewer') THEN
-        user_role := 'viewer';
-    END IF;
-
     bounds := ST_TileEnvelope(z, x, y);
 
     SELECT ST_AsMVT(tile, 'vw_secondary_substation') INTO result
     FROM (
         SELECT
-            v.uuid::text  AS id,
+            v.uuid::text        AS id,
             v.identity,
             v.class_name,
             v.discriminator,
-            CASE WHEN user_role = 'admin'
-                 THEN v.attributes::text
-                 ELSE (v.attributes - 'cost_data')::text
-            END           AS attributes,
+            v.attributes::text  AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds

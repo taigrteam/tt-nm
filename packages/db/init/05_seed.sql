@@ -122,6 +122,37 @@ VALUES
   ('ELECTRICITY', 'vw_primary_substation',   'PRIMARY SUBSTATIONS',   TRUE, 'ELECTRICITY', 'PrimarySubstation',  TRUE, 'circle', '#EC6D26', 10,   FALSE),
   ('ELECTRICITY', 'vw_secondary_substation', 'SECONDARY SUBSTATIONS', TRUE, 'ELECTRICITY', 'SecondarySubstation',TRUE, 'circle', '#0D8C80', 8,    FALSE);
 
+-- ─── DATA DICTIONARY — VIEW COLUMN SPECS ─────────────────────────────────────
+
+-- Conductor views: voltage_kv, length_m, cost_data
+INSERT INTO data_dictionary.view_column_spec
+    (namespace, view_name, source_path, alias, display_name, cast_type)
+SELECT 'ELECTRICITY', v.view_name, col.source_path, col.alias, col.display_name, col.cast_type
+FROM (VALUES
+    ('vw_overhead_line'),
+    ('vw_underground_cable')
+) AS v(view_name)
+CROSS JOIN (VALUES
+    ('voltage_kv', 'voltage_kv', 'Voltage (kV)', 'numeric'),
+    ('length_m',   'length_m',   'Length (m)',   'numeric'),
+    ('cost_data',  'cost_data',  'Cost Data',    'numeric')
+) AS col(source_path, alias, display_name, cast_type);
+
+-- Substation views: voltage_kv, rating_mva, cost_data, status
+INSERT INTO data_dictionary.view_column_spec
+    (namespace, view_name, source_path, alias, display_name, cast_type)
+SELECT 'ELECTRICITY', v.view_name, col.source_path, col.alias, col.display_name, col.cast_type
+FROM (VALUES
+    ('vw_primary_substation'),
+    ('vw_secondary_substation')
+) AS v(view_name)
+CROSS JOIN (VALUES
+    ('voltage_kv', 'voltage_kv', 'Voltage (kV)', 'numeric'),
+    ('rating_mva', 'rating_mva', 'Rating (MVA)', 'numeric'),
+    ('cost_data',  'cost_data',  'Cost Data',    'numeric'),
+    ('status',     'status',     'Status',       'text')
+) AS col(source_path, alias, display_name, cast_type);
+
 -- ─── NETWORK OBJECTS ─────────────────────────────────────────────────────────
 -- All geometry: WGS84, SRID 4326. Coordinates: POINT(longitude latitude).
 -- Active records: valid_to IS NULL.

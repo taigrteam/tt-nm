@@ -340,7 +340,7 @@ BEGIN
             v.identity,
             v.class_name,
             v.discriminator,
-            v.attributes #>> '{}' AS attributes,
+            v.attributes::text  AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
@@ -380,7 +380,7 @@ BEGIN
             v.identity,
             v.class_name,
             v.discriminator,
-            v.attributes #>> '{}' AS attributes,
+            v.attributes::text  AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
@@ -420,7 +420,7 @@ BEGIN
             v.identity,
             v.class_name,
             v.discriminator,
-            v.attributes #>> '{}' AS attributes,
+            v.attributes::text  AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
@@ -460,7 +460,7 @@ BEGIN
             v.identity,
             v.class_name,
             v.discriminator,
-            v.attributes #>> '{}' AS attributes,
+            v.attributes::text  AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
@@ -500,7 +500,7 @@ BEGIN
             v.identity,
             v.class_name,
             v.discriminator,
-            v.attributes #>> '{}' AS attributes,
+            v.attributes::text  AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
@@ -540,7 +540,7 @@ BEGIN
             v.identity,
             v.class_name,
             v.discriminator,
-            v.attributes #>> '{}' AS attributes,
+            v.attributes::text  AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
@@ -580,7 +580,7 @@ BEGIN
             v.identity,
             v.class_name,
             v.discriminator,
-            v.attributes #>> '{}' AS attributes,
+            v.attributes::text  AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
@@ -620,7 +620,7 @@ BEGIN
             v.identity,
             v.class_name,
             v.discriminator,
-            v.attributes #>> '{}' AS attributes,
+            v.attributes::text  AS attributes,
             ST_AsMVTGeom(
                 ST_Transform(v.geo_geometry, 3857),
                 bounds
