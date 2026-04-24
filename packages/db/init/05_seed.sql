@@ -81,6 +81,9 @@ VALUES
   ('ELECTRICITY', 'OverheadLine',        'ELECTRICITY', 'Conductor',   'OBJECT',       FALSE),
   ('ELECTRICITY', 'UndergroundCable',    'ELECTRICITY', 'Conductor',   'OBJECT',       FALSE),
 
+  -- Support branch — poles and towers that carry overhead conductors
+  ('ELECTRICITY', 'Support',             'ELECTRICITY', 'Asset',       'OBJECT',       FALSE),
+
   -- Relationship class (topological edge — no geometry)
   ('ELECTRICITY', 'ConnectedTo',         NULL,          NULL,          'RELATIONSHIP', FALSE);
 
@@ -120,7 +123,8 @@ VALUES
   ('ELECTRICITY', 'vw_overhead_line',        'OVERHEAD LINES',        TRUE, 'ELECTRICITY', 'OverheadLine',       TRUE, 'line',   '#EC6D26', NULL, TRUE),
   ('ELECTRICITY', 'vw_underground_cable',    'UNDERGROUND CABLES',    TRUE, 'ELECTRICITY', 'UndergroundCable',   TRUE, 'line',   '#7B4DB5', NULL, FALSE),
   ('ELECTRICITY', 'vw_primary_substation',   'PRIMARY SUBSTATIONS',   TRUE, 'ELECTRICITY', 'PrimarySubstation',  TRUE, 'circle', '#EC6D26', 10,   FALSE),
-  ('ELECTRICITY', 'vw_secondary_substation', 'SECONDARY SUBSTATIONS', TRUE, 'ELECTRICITY', 'SecondarySubstation',TRUE, 'circle', '#0D8C80', 8,    FALSE);
+  ('ELECTRICITY', 'vw_secondary_substation', 'SECONDARY SUBSTATIONS', TRUE, 'ELECTRICITY', 'SecondarySubstation',TRUE, 'circle', '#0D8C80', 8,    FALSE),
+  ('ELECTRICITY', 'vw_supports',             'SUPPORTS',              TRUE, 'ELECTRICITY', 'Support',            TRUE, 'circle', '#78909C', 4,    FALSE);
 
 -- ─── DATA DICTIONARY — VIEW COLUMN SPECS ─────────────────────────────────────
 
@@ -152,6 +156,15 @@ CROSS JOIN (VALUES
     ('cost_data',  'cost_data',  'Cost Data',    'numeric'),
     ('status',     'status',     'Status',       'text')
 ) AS col(source_path, alias, display_name, cast_type);
+
+-- Support view column specs
+INSERT INTO data_dictionary.view_column_spec
+    (namespace, view_name, source_path, alias, display_name, cast_type)
+VALUES
+  ('ELECTRICITY', 'vw_supports', 'dno',            'dno',            'DNO',            'text'),
+  ('ELECTRICITY', 'vw_supports', 'route_fl',        'route_fl',        'Route',          'text'),
+  ('ELECTRICITY', 'vw_supports', 'asset_ref',       'asset_ref',       'Asset Ref',      'text'),
+  ('ELECTRICITY', 'vw_supports', 'local_authority', 'local_authority', 'Local Authority', 'text');
 
 -- ─── DATA DICTIONARY — SPEN PRIMARY AREAS ─────────────────────────────────
 

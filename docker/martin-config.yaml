@@ -45,3 +45,6 @@ postgres:
     vw_primary_areas:
       schema: network_views
       function: vw_primary_areas
+    vw_supports:
+      schema: network_views
+      function: vw_supports

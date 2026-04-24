@@ -142,3 +142,28 @@ WHERE o.namespace  = 'ELECTRICITY'
 CREATE UNIQUE INDEX ON network_views.vw_secondary_substation (uuid);
 CREATE INDEX ON network_views.vw_secondary_substation USING GIST (geo_geometry);
 ANALYZE network_views.vw_secondary_substation;
+
+-- ── SUPPORTS ──────────────────────────────────────────────────────────────────
+
+DROP MATERIALIZED VIEW IF EXISTS network_views.vw_supports CASCADE;
+
+CREATE MATERIALIZED VIEW network_views.vw_supports AS
+SELECT
+    o.uuid,
+    o.namespace,
+    o.identity,
+    o.class_name,
+    o.discriminator,
+    o.geo_geometry,
+    o.valid_from,
+    o.valid_to,
+    o.hash,
+    o.attributes
+FROM network_model.object o
+WHERE o.namespace  = 'ELECTRICITY'
+  AND o.class_name = 'Support'
+  AND o.valid_to IS NULL;
+
+CREATE UNIQUE INDEX ON network_views.vw_supports (uuid);
+CREATE INDEX ON network_views.vw_supports USING GIST (geo_geometry);
+ANALYZE network_views.vw_supports;
