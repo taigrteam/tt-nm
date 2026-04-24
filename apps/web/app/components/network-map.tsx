@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { Map, Popup, type StyleSpecification, type MapMouseEvent, type MapGeoJSONFeature } from "maplibre-gl";
+import { Map, Popup, type StyleSpecification, type MapMouseEvent, type MapGeoJSONFeature, type FilterSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { NamespaceGroup, SelectedFeature, ViewLayer } from "@/lib/map-types";
 
@@ -40,11 +40,13 @@ const INITIAL_ZOOM = 13;
 interface NetworkMapProps {
   namespaces: NamespaceGroup[];
   onFeatureSelect: (feature: SelectedFeature | null) => void;
+  selectedFeature: SelectedFeature | null;
 }
 
-export default function NetworkMap({ namespaces, onFeatureSelect }: NetworkMapProps) {
+export default function NetworkMap({ namespaces, onFeatureSelect, selectedFeature }: NetworkMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
+  const prevHighlightRef = useRef<{ viewName: string } | null>(null);
 
   // Flatten all view layers for interaction setup
   const allViews = namespaces.flatMap((ns) => ns.views);
@@ -53,7 +55,13 @@ export default function NetworkMap({ namespaces, onFeatureSelect }: NetworkMapPr
   const toggleLayer = useCallback((layerId: string, visible: boolean) => {
     const map = mapRef.current;
     if (!map) return;
-    map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+    const v = visible ? "visible" : "none";
+    map.setLayoutProperty(layerId, "visibility", v);
+    for (const suffix of ["--outline", "--highlight", "--highlight-outline"]) {
+      if (map.getLayer(`${layerId}${suffix}`)) {
+        map.setLayoutProperty(`${layerId}${suffix}`, "visibility", v);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -62,6 +70,32 @@ export default function NetworkMap({ namespaces, onFeatureSelect }: NetworkMapPr
       (el as HTMLDivElement & { __toggleLayer?: typeof toggleLayer }).__toggleLayer = toggleLayer;
     }
   }, [toggleLayer]);
+
+  // Sync selected feature highlight with the map.
+  // Runs whenever selectedFeature changes, including when the inspector is closed (null).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const emptyFilter: FilterSpecification = ["==", ["get", "id"], ""];
+
+    // Clear previous highlight
+    if (prevHighlightRef.current) {
+      const prev = prevHighlightRef.current.viewName;
+      if (map.getLayer(`${prev}--highlight`)) map.setFilter(`${prev}--highlight`, emptyFilter);
+      if (map.getLayer(`${prev}--highlight-outline`)) map.setFilter(`${prev}--highlight-outline`, emptyFilter);
+      prevHighlightRef.current = null;
+    }
+
+    if (selectedFeature) {
+      const { viewName } = selectedFeature;
+      const featureId = String(selectedFeature.properties.id ?? "");
+      const activeFilter: FilterSpecification = ["==", ["get", "id"], featureId];
+      if (map.getLayer(`${viewName}--highlight`)) map.setFilter(`${viewName}--highlight`, activeFilter);
+      if (map.getLayer(`${viewName}--highlight-outline`)) map.setFilter(`${viewName}--highlight-outline`, activeFilter);
+      prevHighlightRef.current = { viewName };
+    }
+  }, [selectedFeature]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -87,7 +121,17 @@ export default function NetworkMap({ namespaces, onFeatureSelect }: NetworkMapPr
         }
       }
 
-      // Add line layers before circle layers so substations render on top
+      // Render order: fill → fill outlines → line → circle
+      for (const ns of namespaces) {
+        for (const view of ns.views) {
+          if (view.geometryType === "fill") addViewLayer(map, view);
+        }
+      }
+      for (const ns of namespaces) {
+        for (const view of ns.views) {
+          if (view.geometryType === "fill") addFillOutlineLayer(map, view);
+        }
+      }
       for (const ns of namespaces) {
         for (const view of ns.views) {
           if (view.geometryType === "line") addViewLayer(map, view);
@@ -97,6 +141,11 @@ export default function NetworkMap({ namespaces, onFeatureSelect }: NetworkMapPr
         for (const view of ns.views) {
           if (view.geometryType === "circle") addViewLayer(map, view);
         }
+      }
+
+      // Highlight layers — added last so they render above everything
+      for (const view of allViews) {
+        addHighlightLayer(map, view);
       }
 
       // Feature click → inspector
@@ -109,6 +158,7 @@ export default function NetworkMap({ namespaces, onFeatureSelect }: NetworkMapPr
           const viewName = feature.layer.id;
           const view = allViews.find((v) => v.viewName === viewName);
           onFeatureSelect({
+            viewName,
             properties: feature.properties as SelectedFeature["properties"],
             columnSpecs: view?.columnSpecs ?? [],
           });
@@ -180,6 +230,78 @@ export default function NetworkMap({ namespaces, onFeatureSelect }: NetworkMapPr
   );
 }
 
+const EMPTY_FILTER: FilterSpecification = ["==", ["get", "id"], ""];
+const HIGHLIGHT_COLOR = "#FF0000";
+
+function addHighlightLayer(map: Map, view: ViewLayer): void {
+  if (view.geometryType === "fill") {
+    map.addLayer({
+      id: `${view.viewName}--highlight`,
+      type: "fill",
+      source: view.viewName,
+      "source-layer": view.viewName,
+      filter: EMPTY_FILTER,
+      paint: {
+        "fill-color": HIGHLIGHT_COLOR,
+        "fill-opacity": 0.45,
+      },
+    });
+    map.addLayer({
+      id: `${view.viewName}--highlight-outline`,
+      type: "line",
+      source: view.viewName,
+      "source-layer": view.viewName,
+      filter: EMPTY_FILTER,
+      paint: {
+        "line-color": HIGHLIGHT_COLOR,
+        "line-width": 3,
+        "line-opacity": 1,
+      },
+    });
+  } else if (view.geometryType === "line") {
+    map.addLayer({
+      id: `${view.viewName}--highlight`,
+      type: "line",
+      source: view.viewName,
+      "source-layer": view.viewName,
+      filter: EMPTY_FILTER,
+      paint: {
+        "line-color": HIGHLIGHT_COLOR,
+        "line-width": 7,
+        "line-opacity": 1,
+      },
+    });
+  } else {
+    map.addLayer({
+      id: `${view.viewName}--highlight`,
+      type: "circle",
+      source: view.viewName,
+      "source-layer": view.viewName,
+      filter: EMPTY_FILTER,
+      paint: {
+        "circle-radius": view.radius,
+        "circle-color": view.color,
+        "circle-stroke-color": HIGHLIGHT_COLOR,
+        "circle-stroke-width": 3,
+      },
+    });
+  }
+}
+
+function addFillOutlineLayer(map: Map, view: ViewLayer): void {
+  map.addLayer({
+    id: `${view.viewName}--outline`,
+    type: "line",
+    source: view.viewName,
+    "source-layer": view.viewName,
+    paint: {
+      "line-color": view.color,
+      "line-width": 1.5,
+      "line-opacity": 0.8,
+    },
+  });
+}
+
 function addViewSource(map: Map, view: ViewLayer): void {
   map.addSource(view.viewName, {
     type: "vector",
@@ -192,7 +314,18 @@ function addViewSource(map: Map, view: ViewLayer): void {
 }
 
 function addViewLayer(map: Map, view: ViewLayer): void {
-  if (view.geometryType === "line") {
+  if (view.geometryType === "fill") {
+    map.addLayer({
+      id: view.viewName,
+      type: "fill",
+      source: view.viewName,
+      "source-layer": view.viewName,
+      paint: {
+        "fill-color": view.color,
+        "fill-opacity": 0.25,
+      },
+    });
+  } else if (view.geometryType === "line") {
     map.addLayer({
       id: view.viewName,
       type: "line",

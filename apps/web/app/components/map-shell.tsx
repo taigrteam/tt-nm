@@ -36,7 +36,7 @@ export default function MapShell({ namespaces }: MapShellProps) {
   return (
     <div className="flex flex-1 overflow-hidden relative">
       <LayerSidebar namespaces={namespaces} onLayerToggle={handleLayerToggle} />
-      <NetworkMap namespaces={namespaces} onFeatureSelect={handleFeatureSelect} />
+      <NetworkMap namespaces={namespaces} onFeatureSelect={handleFeatureSelect} selectedFeature={selectedFeature} />
       <AttributeInspector
         feature={selectedFeature}
         onClose={() => setSelectedFeature(null)}

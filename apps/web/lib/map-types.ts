@@ -9,7 +9,7 @@ export interface ColumnSpec {
 export interface ViewLayer {
   viewName: string;        // SQL-safe name — used as tile source ID and layer ID
   displayName: string;     // UI label shown in the layer sidebar
-  geometryType: "line" | "circle";
+  geometryType: "line" | "circle" | "fill";
   color: string;           // Primary hex colour for map paint
   radius: number;          // Circle radius in pixels (circle layers only)
   dashed: boolean;         // Dash pattern applied to line layers
@@ -24,6 +24,7 @@ export interface NamespaceGroup {
 
 // Passed from the map click handler to the attribute inspector.
 export interface SelectedFeature {
+  viewName: string;          // Source layer ID — used to target the correct highlight layer
   properties: Record<string, string | number | boolean | null | undefined>;
   columnSpecs: ColumnSpec[];
 }

@@ -1,6 +1,8 @@
 # GeoJSON
 .geojson
 
+data/*
+
 # Dependencies
 node_modules/
 .pnpm-store/

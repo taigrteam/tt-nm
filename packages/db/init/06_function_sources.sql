@@ -179,3 +179,43 @@ BEGIN
     RETURN COALESCE(result, ''::bytea);
 END;
 $$;
+
+-- ── PRIMARY POLYGONS ──────────────────────────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION network_views.vw_primary_polygons(
+    z            integer,
+    x            integer,
+    y            integer,
+    query_params json DEFAULT '{}'::json
+)
+RETURNS bytea
+LANGUAGE plpgsql
+STABLE
+PARALLEL SAFE
+AS $$
+DECLARE
+    bounds  geometry;
+    result  bytea;
+BEGIN
+    bounds := ST_TileEnvelope(z, x, y);
+
+    SELECT ST_AsMVT(tile, 'vw_primary_polygons') INTO result
+    FROM (
+        SELECT
+            v.uuid::text        AS id,
+            v.identity,
+            v.class_name,
+            v.discriminator,
+            v.attributes::text  AS attributes,
+            ST_AsMVTGeom(
+                ST_Transform(v.geo_geometry, 3857),
+                bounds
+            ) AS geom
+        FROM network_views.vw_primary_polygons v
+        WHERE ST_Intersects(v.geo_geometry, ST_Transform(bounds, 4326))
+    ) AS tile
+    WHERE tile.geom IS NOT NULL;
+
+    RETURN COALESCE(result, ''::bytea);
+END;
+$$;

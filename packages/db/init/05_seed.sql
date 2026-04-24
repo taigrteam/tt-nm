@@ -153,6 +153,23 @@ CROSS JOIN (VALUES
     ('status',     'status',     'Status',       'text')
 ) AS col(source_path, alias, display_name, cast_type);
 
+-- ─── DATA DICTIONARY — SPEN PRIMARY POLYGONS ─────────────────────────────────
+
+INSERT INTO data_dictionary.view_definition
+    (namespace, view_name, display_name, is_materialized, class_namespace, class_name,
+     show_on_map, map_geometry_type, map_color, map_radius, map_dashed)
+VALUES
+  ('ELECTRICITY', 'vw_primary_polygons', 'PRIMARY POLYGONS', TRUE, 'ELECTRICITY',
+   'PrimaryPolygon', TRUE, 'fill', '#0D8C80', NULL, FALSE);
+
+INSERT INTO data_dictionary.view_column_spec
+    (namespace, view_name, source_path, alias, display_name, cast_type)
+VALUES
+  ('ELECTRICITY', 'vw_primary_polygons', 'objectid',            'objectid',            'Object ID',               'text'),
+  ('ELECTRICITY', 'vw_primary_polygons', 'primary',             'primary',             'Primary Area',            'text'),
+  ('ELECTRICITY', 'vw_primary_polygons', 'lv_reading_coverage', 'lv_reading_coverage', 'LV Reading Coverage (%)', 'numeric'),
+  ('ELECTRICITY', 'vw_primary_polygons', 'geo_point_2d',        'geo_point_2d',        'Centre Point',            'text');
+
 -- ─── NETWORK OBJECTS ─────────────────────────────────────────────────────────
 -- All geometry: WGS84, SRID 4326. Coordinates: POINT(longitude latitude).
 -- Active records: valid_to IS NULL.
