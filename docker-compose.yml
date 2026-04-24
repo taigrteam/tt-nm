@@ -1,6 +1,7 @@
 services:
 
   db:
+    profiles: ["docker-db"]   # not started by default; use: docker compose --profile docker-db up
     build:
       context: .
       dockerfile: docker/Dockerfile.db
@@ -13,7 +14,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./packages/db/init:/docker-entrypoint-initdb.d:ro
     ports:
-      - "5432:5432"   # host access for psql / Drizzle in local dev
+      - "5432:5432"
     networks:
       - internal
     healthcheck:
@@ -27,12 +28,13 @@ services:
     container_name: tt-martin
     command: ["-c", "/config/martin-config.yaml"]
     environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-devpassword}@db:5432/ttdb
+      # Points to the native WSL2 PostgreSQL instance on the host.
+      # host.docker.internal resolves to the Docker bridge gateway via extra_hosts below.
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-devpassword}@host.docker.internal:5432/ttdb
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./docker/martin-config.yaml:/config/martin-config.yaml:ro
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - internal
     # NO ports mapping — Martin is internal only.
