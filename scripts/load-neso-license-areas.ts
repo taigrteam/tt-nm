@@ -1,11 +1,11 @@
 #!/usr/bin/env tsx
 /**
- * load-spen-primary.ts — Load SPEN primary area GeoJSON into network_model.object.
+ * load-neso-license-areas.ts — Load NESO DNO license area GeoJSON into network_model.object.
  *
  * Usage:
- *   tsx scripts/load-spen-primary.ts --file data/SPD_primary.geojson --prefix SPD
- *   tsx scripts/load-spen-primary.ts --file data/SPM_primary.geojson --prefix SPM
+ *   tsx scripts/load-neso-license-areas.ts [--file <path>]
  *
+ * Defaults to data/NESO_gb-dno-license-areas-20240503-as-geojsoni-4326.geojson.
  * DATABASE_URL is read from the environment or from apps/web/.env.local.
  * Existing records (matched by namespace + identity, valid_to IS NULL) are silently skipped.
  */
@@ -16,28 +16,23 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
 
-const SCRIPT_DIR    = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT     = dirname(SCRIPT_DIR);
-const ENV_FILE      = resolve(REPO_ROOT, 'apps/web/.env.local');
-const NAMESPACE     = 'ELECTRICITY';
-const CLASS_NAME    = 'PrimaryZone';
-const DISCRIMINATOR = 'Primary';
-const BATCH_SIZE    = 100;
+const SCRIPT_DIR     = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT      = dirname(SCRIPT_DIR);
+const ENV_FILE       = resolve(REPO_ROOT, 'apps/web/.env.local');
+const NAMESPACE      = 'ELECTRICITY';
+const CLASS_NAME     = 'DNOLicenseZone';
+const BATCH_SIZE     = 50;
+const DEFAULT_FILE   = 'data/NESO_gb-dno-license-areas-20240503-as-geojsoni-4326.geojson';
 
 // ── Argument parsing ──────────────────────────────────────────────────────────
 
-function getArg(flag: string): string {
+function getArg(flag: string): string | undefined {
   const idx = process.argv.indexOf(flag);
-  if (idx === -1 || !process.argv[idx + 1]) {
-    console.error(`ERROR: ${flag} <value> is required`);
-    console.error('Usage: tsx scripts/load-spen-primary.ts --file <path> --prefix <prefix>');
-    process.exit(1);
-  }
+  if (idx === -1 || !process.argv[idx + 1]) return undefined;
   return process.argv[idx + 1];
 }
 
-const inputFile      = resolve(REPO_ROOT, getArg('--file'));
-const identityPrefix = 'PP-' + getArg('--prefix') + '-';
+const inputFile = resolve(REPO_ROOT, getArg('--file') ?? DEFAULT_FILE);
 
 // ── DATABASE_URL resolution ───────────────────────────────────────────────────
 
@@ -72,10 +67,11 @@ async function readTextFile(filePath: string): Promise<string> {
 // ── Batch insert ──────────────────────────────────────────────────────────────
 
 type RowPayload = {
-  identity:     string;
-  geo_geometry: string;
-  attributes:   Record<string, unknown>;
-  hash:         string;
+  identity:      string;
+  discriminator: string;
+  geo_geometry:  string;
+  attributes:    Record<string, unknown>;
+  hash:          string;
 };
 
 async function insertBatch(sql: postgres.Sql, rows: RowPayload[]): Promise<number> {
@@ -91,7 +87,7 @@ async function insertBatch(sql: postgres.Sql, rows: RowPayload[]): Promise<numbe
           ${NAMESPACE},
           ${row.identity},
           ${CLASS_NAME},
-          ${DISCRIMINATOR},
+          ${row.discriminator},
           ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON(${row.geo_geometry}), 4326)),
           NULL,
           ${sql.json(row.attributes)},
@@ -117,22 +113,18 @@ async function main() {
   const sql   = postgres(dbUrl, { max: 1 });
 
   console.log(`Reading ${inputFile} ...`);
-
-  const raw = await readTextFile(inputFile);
-
+  const raw        = await readTextFile(inputFile);
   const collection = JSON.parse(raw) as { features?: unknown[] };
+
   if (!Array.isArray(collection.features)) {
     console.error('ERROR: No features array found in GeoJSON.');
     process.exit(1);
   }
 
-  const features = collection.features as Array<{
-    geometry: object;
-    properties: Record<string, unknown>;
-  }>;
-
-  const total = features.length;
-  console.log(`Found ${total} features. Loading as ${CLASS_NAME} (prefix: ${identityPrefix}) ...`);
+  type Feature = { geometry: object; properties: Record<string, unknown> };
+  const features = collection.features as Feature[];
+  const total    = features.length;
+  console.log(`Found ${total} features. Loading as ${CLASS_NAME} in namespace ${NAMESPACE} ...`);
 
   let totalAttempted = 0;
   let totalInserted  = 0;
@@ -140,20 +132,21 @@ async function main() {
   for (let i = 0; i < total; i += BATCH_SIZE) {
     const batch = features.slice(i, i + BATCH_SIZE);
 
-    const rows: RowPayload[] = batch.map(feature => {
-      const props    = feature.properties ?? {};
-      const objectId = String(props.objectid ?? '');
+    const rows: RowPayload[] = batch.map((feature, batchIdx) => {
+      const props = feature.properties ?? {};
+      const id    = String(props['ID'] ?? (i + batchIdx));
+      const dno   = String(props['DNO'] ?? '');
       return {
-        identity:     identityPrefix + objectId,
-        geo_geometry: JSON.stringify(feature.geometry),
-        attributes:   props,
-        hash:         createHash('md5').update(JSON.stringify(props)).digest('hex'),
+        identity:      `NESO-DLA-${id}`,
+        discriminator: dno,
+        geo_geometry:  JSON.stringify(feature.geometry),
+        attributes:    props,
+        hash:          createHash('md5').update(JSON.stringify(props)).digest('hex'),
       };
     });
 
     const inserted = await insertBatch(sql, rows);
     const skipped  = rows.length - inserted;
-
     totalAttempted += rows.length;
     totalInserted  += inserted;
 
@@ -163,7 +156,6 @@ async function main() {
   }
 
   await sql.end();
-
   const skipped = totalAttempted - totalInserted;
   console.log('');
   console.log(`Done: ${totalAttempted} attempted, ${totalInserted} inserted, ${skipped} skipped.`);

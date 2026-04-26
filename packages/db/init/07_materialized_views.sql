@@ -68,11 +68,11 @@ CREATE UNIQUE INDEX ON network_views.vw_underground_cable (uuid);
 CREATE INDEX ON network_views.vw_underground_cable USING GIST (geo_geometry);
 ANALYZE network_views.vw_underground_cable;
 
--- ── PRIMARY AREAS ─────────────────────────────────────────────────────────────
+-- ── PRIMARY ZONES ─────────────────────────────────────────────────────────────
 
-DROP MATERIALIZED VIEW IF EXISTS network_views.vw_primary_areas CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS network_views.vw_primary_zones CASCADE;
 
-CREATE MATERIALIZED VIEW network_views.vw_primary_areas AS
+CREATE MATERIALIZED VIEW network_views.vw_primary_zones AS
 SELECT
     o.uuid,
     o.namespace,
@@ -86,12 +86,12 @@ SELECT
     o.attributes
 FROM network_model.object o
 WHERE o.namespace  = 'ELECTRICITY'
-  AND o.class_name = 'PrimaryArea'
+  AND o.class_name = 'PrimaryZone'
   AND o.valid_to IS NULL;
 
-CREATE UNIQUE INDEX ON network_views.vw_primary_areas (uuid);
-CREATE INDEX ON network_views.vw_primary_areas USING GIST (geo_geometry);
-ANALYZE network_views.vw_primary_areas;
+CREATE UNIQUE INDEX ON network_views.vw_primary_zones (uuid);
+CREATE INDEX ON network_views.vw_primary_zones USING GIST (geo_geometry);
+ANALYZE network_views.vw_primary_zones;
 
 -- ── PRIMARY SUBSTATIONS ───────────────────────────────────────────────────────
 

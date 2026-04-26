@@ -41,9 +41,10 @@ interface NetworkMapProps {
   namespaces: NamespaceGroup[];
   onFeatureSelect: (feature: SelectedFeature | null) => void;
   selectedFeature: SelectedFeature | null;
+  initialVisibleLayers: string[];
 }
 
-export default function NetworkMap({ namespaces, onFeatureSelect, selectedFeature }: NetworkMapProps) {
+export default function NetworkMap({ namespaces, onFeatureSelect, selectedFeature, initialVisibleLayers }: NetworkMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
   const prevHighlightRef = useRef<{ viewName: string } | null>(null);
@@ -114,6 +115,8 @@ export default function NetworkMap({ namespaces, onFeatureSelect, selectedFeatur
     map.keyboard.disableRotation();
 
     map.on("load", () => {
+      const initiallyVisible = new Set(initialVisibleLayers);
+
       // Add sources for all views first
       for (const ns of namespaces) {
         for (const view of ns.views) {
@@ -124,22 +127,22 @@ export default function NetworkMap({ namespaces, onFeatureSelect, selectedFeatur
       // Render order: fill → fill outlines → line → circle
       for (const ns of namespaces) {
         for (const view of ns.views) {
-          if (view.geometryType === "fill") addViewLayer(map, view);
+          if (view.geometryType === "fill") addViewLayer(map, view, initiallyVisible.has(view.viewName));
         }
       }
       for (const ns of namespaces) {
         for (const view of ns.views) {
-          if (view.geometryType === "fill") addFillOutlineLayer(map, view);
+          if (view.geometryType === "fill") addFillOutlineLayer(map, view, initiallyVisible.has(view.viewName));
         }
       }
       for (const ns of namespaces) {
         for (const view of ns.views) {
-          if (view.geometryType === "line") addViewLayer(map, view);
+          if (view.geometryType === "line") addViewLayer(map, view, initiallyVisible.has(view.viewName));
         }
       }
       for (const ns of namespaces) {
         for (const view of ns.views) {
-          if (view.geometryType === "circle") addViewLayer(map, view);
+          if (view.geometryType === "circle") addViewLayer(map, view, initiallyVisible.has(view.viewName));
         }
       }
 
@@ -297,12 +300,13 @@ function addHighlightLayer(map: Map, view: ViewLayer): void {
   }
 }
 
-function addFillOutlineLayer(map: Map, view: ViewLayer): void {
+function addFillOutlineLayer(map: Map, view: ViewLayer, visible: boolean): void {
   map.addLayer({
     id: `${view.viewName}--outline`,
     type: "line",
     source: view.viewName,
     "source-layer": view.viewName,
+    layout: { visibility: visible ? "visible" : "none" },
     paint: {
       "line-color": view.color,
       "line-width": 1.5,
@@ -322,13 +326,15 @@ function addViewSource(map: Map, view: ViewLayer): void {
   });
 }
 
-function addViewLayer(map: Map, view: ViewLayer): void {
+function addViewLayer(map: Map, view: ViewLayer, visible: boolean): void {
+  const v = visible ? "visible" : "none";
   if (view.geometryType === "fill") {
     map.addLayer({
       id: view.viewName,
       type: "fill",
       source: view.viewName,
       "source-layer": view.viewName,
+      layout: { visibility: v },
       paint: {
         "fill-color": view.color,
         "fill-opacity": 0.25,
@@ -340,6 +346,7 @@ function addViewLayer(map: Map, view: ViewLayer): void {
       type: "line",
       source: view.viewName,
       "source-layer": view.viewName,
+      layout: { visibility: v },
       paint: {
         "line-color": view.color,
         "line-width": 3,
@@ -353,6 +360,7 @@ function addViewLayer(map: Map, view: ViewLayer): void {
       type: "circle",
       source: view.viewName,
       "source-layer": view.viewName,
+      layout: { visibility: v },
       paint: {
         "circle-radius": view.radius,
         "circle-color": view.color,

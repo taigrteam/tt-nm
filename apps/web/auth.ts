@@ -116,9 +116,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
 
     async session({ session, token }) {
-      // Expose role on the session so the tile proxy can read it server-side.
+      // Expose role and sub on the session so server components and actions can read them.
       if (session.user) {
         session.user.role = token.role as string;
+        session.user.sub  = token.sub  as string;
       }
       return session;
     },

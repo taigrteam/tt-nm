@@ -52,7 +52,7 @@ pnpm tsx "${SCRIPT_DIR}/load-spen-primary.ts" --file "${DATA_FILE}" --prefix "${
 
 echo ""
 echo "Refreshing materialized view ..."
-bash "${SCRIPT_DIR}/refresh-views.sh" --view vw_primary_areas
+bash "${SCRIPT_DIR}/refresh-views.sh" --view vw_primary_zones
 
 echo ""
-echo "Done. PRIMARY AREAS are ready on the map."
+echo "Done. PRIMARY ZONES are ready on the map."

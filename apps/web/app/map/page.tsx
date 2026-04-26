@@ -1,5 +1,6 @@
 import NavBar from "@/app/components/nav-bar";
 import MapShell from "@/app/components/map-shell";
+import { auth } from "@/auth";
 import { sql } from "@/lib/db";
 import type { ColumnSpec, NamespaceGroup, ViewLayer } from "@/lib/map-types";
 
@@ -78,13 +79,28 @@ async function getNamespaceGroups(): Promise<NamespaceGroup[]> {
   return Array.from(grouped.values());
 }
 
+async function getVisibleLayers(sub: string): Promise<string[]> {
+  const rows = await sql<{ view_name: string }[]>`
+    SELECT view_name
+    FROM network_views.layer_visibility_state
+    WHERE user_sub = ${sub}
+  `;
+  return rows.map((r) => r.view_name);
+}
+
 export default async function MapPage() {
-  const namespaces = await getNamespaceGroups();
+  const session = await auth();
+  const sub = session?.user?.sub ?? "";
+
+  const [namespaces, initialVisibleLayers] = await Promise.all([
+    getNamespaceGroups(),
+    sub ? getVisibleLayers(sub) : Promise.resolve([]),
+  ]);
 
   return (
     <div className="flex flex-col h-screen w-screen">
       <NavBar />
-      <MapShell namespaces={namespaces} />
+      <MapShell namespaces={namespaces} initialVisibleLayers={initialVisibleLayers} />
     </div>
   );
 }

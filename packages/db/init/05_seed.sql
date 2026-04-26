@@ -166,23 +166,23 @@ VALUES
   ('ELECTRICITY', 'vw_supports', 'asset_ref',       'asset_ref',       'Asset Ref',      'text'),
   ('ELECTRICITY', 'vw_supports', 'local_authority', 'local_authority', 'Local Authority', 'text');
 
--- ─── DATA DICTIONARY — SPEN PRIMARY AREAS ─────────────────────────────────
+-- ─── DATA DICTIONARY — SPEN PRIMARY ZONES ─────────────────────────────────
 
 INSERT INTO data_dictionary.view_definition
     (namespace, view_name, display_name, is_materialized, class_namespace, class_name,
      show_on_map, map_geometry_type, map_color, map_radius, map_dashed)
 VALUES
-  ('ELECTRICITY', 'vw_primary_areas', 'PRIMARY AREAS', TRUE, 'ELECTRICITY',
-   'PrimaryArea', TRUE, 'fill', '#0D8C80', NULL, FALSE);
+  ('ELECTRICITY', 'vw_primary_zones', 'PRIMARY ZONES', TRUE, 'ELECTRICITY',
+   'PrimaryZone', TRUE, 'fill', '#0D8C80', NULL, FALSE);
 
 INSERT INTO data_dictionary.view_column_spec
     (namespace, view_name, source_path, alias, display_name, cast_type)
 VALUES
-  ('ELECTRICITY', 'vw_primary_areas', 'objectid',            'objectid',            'Object ID',               'text'),
-  ('ELECTRICITY', 'vw_primary_areas', 'primary',             'primary',             'Primary Area',            'text'),
-  ('ELECTRICITY', 'vw_primary_areas', 'psgroup',             'psgroup',             'Primary Name',            'text'),
-  ('ELECTRICITY', 'vw_primary_areas', 'lv_reading_coverage', 'lv_reading_coverage', 'LV Reading Coverage (%)', 'numeric'),
-  ('ELECTRICITY', 'vw_primary_areas', 'geo_point_2d',        'geo_point_2d',        'Geo Point',               'text');
+  ('ELECTRICITY', 'vw_primary_zones', 'objectid',            'objectid',            'Object ID',               'text'),
+  ('ELECTRICITY', 'vw_primary_zones', 'primary',             'primary',             'Primary Area',            'text'),
+  ('ELECTRICITY', 'vw_primary_zones', 'psgroup',             'psgroup',             'Primary Name',            'text'),
+  ('ELECTRICITY', 'vw_primary_zones', 'lv_reading_coverage', 'lv_reading_coverage', 'LV Reading Coverage (%)', 'numeric'),
+  ('ELECTRICITY', 'vw_primary_zones', 'geo_point_2d',        'geo_point_2d',        'Geo Point',               'text');
 
 -- ─── NETWORK OBJECTS ─────────────────────────────────────────────────────────
 -- All geometry: WGS84, SRID 4326. Coordinates: POINT(longitude latitude).

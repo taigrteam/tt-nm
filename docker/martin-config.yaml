@@ -42,9 +42,15 @@ postgres:
     vw_road_end:
       schema: network_views
       function: vw_road_end
-    vw_primary_areas:
+    vw_primary_zones:
       schema: network_views
-      function: vw_primary_areas
+      function: vw_primary_zones
     vw_supports:
       schema: network_views
       function: vw_supports
+    vw_dno_license_zones:
+      schema: network_views
+      function: vw_dno_license_zones
+    vw_gsp_zones:
+      schema: network_views
+      function: vw_gsp_zones

@@ -1,30 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Layers, ChevronLeft, ChevronRight, ChevronDown, ChevronRight as FolderChevron, Eye, EyeOff } from "lucide-react";
 import type { NamespaceGroup } from "@/lib/map-types";
+import { saveLayerVisibility } from "@/app/actions/layer-state";
 
 interface LayerSidebarProps {
   namespaces: NamespaceGroup[];
   onLayerToggle: (layerId: string, visible: boolean) => void;
+  initialVisibleLayers: string[];
 }
 
-export default function LayerSidebar({ namespaces, onLayerToggle }: LayerSidebarProps) {
+export default function LayerSidebar({ namespaces, onLayerToggle, initialVisibleLayers }: LayerSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [, startTransition] = useTransition();
 
-  // Visibility state: viewName → boolean (all visible by default)
+  // Visibility state: seeded from persisted state; missing entries default to false (off).
   const [visibility, setVisibility] = useState<Record<string, boolean>>(() => {
+    const visible = new Set(initialVisibleLayers);
     const init: Record<string, boolean> = {};
     for (const ns of namespaces) {
       for (const view of ns.views) {
-        init[view.viewName] = true;
+        init[view.viewName] = visible.has(view.viewName);
       }
     }
     return init;
   });
 
-  // Collapsed namespace folders: namespace key → boolean (all expanded by default)
-  const [folderCollapsed, setFolderCollapsed] = useState<Record<string, boolean>>({});
+  // Collapsed namespace folders: namespace key → boolean (all collapsed by default)
+  const [folderCollapsed, setFolderCollapsed] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    for (const ns of namespaces) {
+      init[ns.namespace] = true;
+    }
+    return init;
+  });
 
   // Per-namespace snapshot of individual layer visibility captured just before
   // the namespace was toggled off — restored when the namespace is toggled back on.
@@ -34,6 +44,7 @@ export default function LayerSidebar({ namespaces, onLayerToggle }: LayerSidebar
     const next = !visibility[viewName];
     setVisibility((prev) => ({ ...prev, [viewName]: next }));
     onLayerToggle(viewName, next);
+    startTransition(() => { saveLayerVisibility([{ viewName, visible: next }]); });
   }
 
   function toggleNamespace(ns: NamespaceGroup) {
@@ -51,6 +62,9 @@ export default function LayerSidebar({ namespaces, onLayerToggle }: LayerSidebar
         onLayerToggle(v.viewName, false);
       }
       setVisibility((prev) => ({ ...prev, ...updates }));
+      startTransition(() => {
+        saveLayerVisibility(ns.views.map((v) => ({ viewName: v.viewName, visible: false })));
+      });
     } else {
       // Restore from snapshot; fall back to all-on if no snapshot exists.
       const snap = nsSnapshot[ns.namespace];
@@ -61,6 +75,9 @@ export default function LayerSidebar({ namespaces, onLayerToggle }: LayerSidebar
         onLayerToggle(v.viewName, restore);
       }
       setVisibility((prev) => ({ ...prev, ...updates }));
+      startTransition(() => {
+        saveLayerVisibility(ns.views.map((v) => ({ viewName: v.viewName, visible: updates[v.viewName] })));
+      });
     }
   }
 
@@ -164,7 +181,7 @@ export default function LayerSidebar({ namespaces, onLayerToggle }: LayerSidebar
                 {isFolderOpen && (
                   <div className="flex flex-col gap-0.5 px-2 py-1">
                     {ns.views.map((view) => {
-                      const isVisible = visibility[view.viewName] ?? true;
+                      const isVisible = visibility[view.viewName] ?? false;
                       return (
                         <button
                           key={view.viewName}

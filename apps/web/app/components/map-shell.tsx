@@ -8,9 +8,10 @@ import type { NamespaceGroup, SelectedFeature } from "@/lib/map-types";
 
 interface MapShellProps {
   namespaces: NamespaceGroup[];
+  initialVisibleLayers: string[];
 }
 
-export default function MapShell({ namespaces }: MapShellProps) {
+export default function MapShell({ namespaces, initialVisibleLayers }: MapShellProps) {
   const [selectedFeature, setSelectedFeature] =
     useState<SelectedFeature | null>(null);
 
@@ -35,8 +36,8 @@ export default function MapShell({ namespaces }: MapShellProps) {
 
   return (
     <div className="flex flex-1 overflow-hidden relative">
-      <LayerSidebar namespaces={namespaces} onLayerToggle={handleLayerToggle} />
-      <NetworkMap namespaces={namespaces} onFeatureSelect={handleFeatureSelect} selectedFeature={selectedFeature} />
+      <LayerSidebar namespaces={namespaces} onLayerToggle={handleLayerToggle} initialVisibleLayers={initialVisibleLayers} />
+      <NetworkMap namespaces={namespaces} onFeatureSelect={handleFeatureSelect} selectedFeature={selectedFeature} initialVisibleLayers={initialVisibleLayers} />
       <AttributeInspector
         feature={selectedFeature}
         onClose={() => setSelectedFeature(null)}
