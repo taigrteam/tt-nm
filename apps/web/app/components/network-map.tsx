@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
-import { Map, Popup, type StyleSpecification, type MapMouseEvent, type MapGeoJSONFeature, type FilterSpecification } from "maplibre-gl";
+import React, { useEffect, useRef, useCallback, useState } from "react";
+import { Map, Popup, type StyleSpecification, type MapMouseEvent, type MapGeoJSONFeature, type FilterSpecification, type LngLatBoundsLike } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { NamespaceGroup, SelectedFeature, ViewLayer } from "@/lib/map-types";
+import { getFeatureBounds } from "@/app/actions/map-features";
 
 function escapeHtml(str: string): string {
   return str
@@ -44,14 +45,36 @@ interface NetworkMapProps {
   initialVisibleLayers: string[];
 }
 
+interface ContextMenuState {
+  x: number;
+  y: number;
+  featureId: string;
+  geomType: string;
+  featureData: SelectedFeature;
+}
+
 export default function NetworkMap({ namespaces, onFeatureSelect, selectedFeature, initialVisibleLayers }: NetworkMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
   const prevHighlightRef = useRef<{ viewName: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   // Flatten all view layers for interaction setup
   const allViews = namespaces.flatMap((ns) => ns.views);
   const interactiveLayerIds = allViews.map((v) => v.viewName);
+
+  // Close context menu on Escape key
+  useEffect(() => {
+    if (!contextMenu) return;
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setContextMenu(null); }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [contextMenu]);
+
+  const handleZoomTo = useCallback((bounds: [number, number, number, number]) => {
+    mapRef.current?.fitBounds(bounds as LngLatBoundsLike, { padding: 40 });
+    setContextMenu(null);
+  }, []);
 
   const toggleLayer = useCallback((layerId: string, visible: boolean) => {
     const map = mapRef.current;
@@ -151,8 +174,40 @@ export default function NetworkMap({ namespaces, onFeatureSelect, selectedFeatur
         addHighlightLayer(map, view);
       }
 
+      // Right-click → context menu
+      map.on("contextmenu", (e: MapMouseEvent) => {
+        e.originalEvent.preventDefault();
+        const features = map.queryRenderedFeatures(e.point, { layers: interactiveLayerIds });
+        if (features.length === 0) { setContextMenu(null); return; }
+        const feature  = features[0];
+        const geomType = feature.geometry?.type ?? "";
+        const featureId = String((feature.properties as Record<string, unknown>)?.id ?? "");
+        const viewName = feature.layer.id;
+        const view = allViews.find((v) => v.viewName === viewName);
+        // Clamp menu position within container
+        const container = map.getContainer();
+        const cw = container.clientWidth;
+        const ch = container.clientHeight;
+        const menuW = 160;
+        const menuH = 124;
+        const x = e.point.x + menuW > cw ? e.point.x - menuW : e.point.x;
+        const y = e.point.y + menuH > ch ? e.point.y - menuH : e.point.y;
+        setContextMenu({
+          x, y, featureId, geomType,
+          featureData: {
+            viewName,
+            properties: feature.properties as SelectedFeature["properties"],
+            columnSpecs: view?.columnSpecs ?? [],
+          },
+        });
+      });
+
+      // Dismiss context menu when the map starts moving
+      map.on("movestart", () => setContextMenu(null));
+
       // Feature click → inspector
       map.on("click", (e: MapMouseEvent) => {
+        setContextMenu(null);
         const features = map.queryRenderedFeatures(e.point, {
           layers: interactiveLayerIds,
         });
@@ -234,11 +289,22 @@ export default function NetworkMap({ namespaces, onFeatureSelect, selectedFeatur
   }, [onFeatureSelect]);
 
   return (
-    <div
-      ref={containerRef}
-      data-map-container
-      className="flex-1 relative"
-    />
+    <div ref={containerRef} data-map-container className="flex-1 relative">
+      {contextMenu && (
+        <MapContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          featureId={contextMenu.featureId}
+          geomType={contextMenu.geomType}
+          onZoomTo={handleZoomTo}
+          onClose={() => setContextMenu(null)}
+          onShowProperties={() => {
+            onFeatureSelect(contextMenu.featureData);
+            setContextMenu(null);
+          }}
+        />
+      )}
+    </div>
   );
 }
 
@@ -369,4 +435,99 @@ function addViewLayer(map: Map, view: ViewLayer, visible: boolean): void {
       },
     });
   }
+}
+
+// ── Context menu ──────────────────────────────────────────────────────────────
+
+function MapContextMenu({
+  x, y, featureId, geomType, onZoomTo, onClose, onShowProperties,
+}: {
+  x: number;
+  y: number;
+  featureId: string;
+  geomType: string;
+  onZoomTo: (bounds: [number, number, number, number]) => void;
+  onClose: () => void;
+  onShowProperties: () => void;
+}) {
+  const canZoom = geomType !== "Point";
+
+  async function handleZoomTo() {
+    onClose();
+    if (!featureId) return;
+    const bounds = await getFeatureBounds(featureId);
+    if (bounds) {
+      onZoomTo(bounds);
+      onShowProperties();
+    }
+  }
+
+  const menuItemStyle = (enabled: boolean): React.CSSProperties => ({
+    display: "flex",
+    alignItems: "center",
+    width: "100%",
+    padding: "8px 14px",
+    fontFamily: "'Roboto', sans-serif",
+    fontSize: "0.62rem",
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    color: enabled ? "var(--text)" : "var(--text-muted)",
+    background: "transparent",
+    border: "none",
+    cursor: enabled ? "pointer" : "not-allowed",
+    opacity: enabled ? 1 : 0.4,
+    transition: "background 0.1s ease",
+  });
+
+  function onHoverEnter(e: React.MouseEvent<HTMLButtonElement>, enabled: boolean) {
+    if (enabled) (e.currentTarget as HTMLButtonElement).style.background = "var(--row-hover)";
+  }
+  function onHoverLeave(e: React.MouseEvent<HTMLButtonElement>) {
+    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+  }
+
+  return (
+    <>
+      {/* Invisible backdrop — click anywhere outside closes the menu */}
+      <div className="absolute inset-0" style={{ zIndex: 20 }} onClick={onClose} />
+
+      {/* Menu */}
+      <div
+        style={{
+          position: "absolute",
+          left: x,
+          top: y,
+          zIndex: 30,
+          minWidth: 160,
+          background: "var(--card-bg)",
+          border: "2px solid var(--border-col)",
+          boxShadow: "6px 6px 0 var(--shadow-col)",
+        }}
+      >
+        <button
+          onClick={onShowProperties}
+          style={menuItemStyle(true)}
+          onMouseEnter={(e) => onHoverEnter(e, true)}
+          onMouseLeave={onHoverLeave}
+        >
+          Properties
+        </button>
+        <div style={{ height: 1, background: "var(--border-col)", opacity: 0.15, margin: "0 8px" }} />
+        <button
+          onClick={canZoom ? handleZoomTo : undefined}
+          disabled={!canZoom}
+          style={menuItemStyle(canZoom)}
+          onMouseEnter={(e) => onHoverEnter(e, canZoom)}
+          onMouseLeave={onHoverLeave}
+        >
+          Zoom to
+        </button>
+        <div style={{ height: 1, background: "var(--border-col)", opacity: 0.15, margin: "0 8px" }} />
+        <button disabled style={menuItemStyle(false)}>
+          Graph
+        </button>
+      </div>
+    </>
+  );
 }

@@ -118,13 +118,13 @@ VALUES
 
 INSERT INTO data_dictionary.view_definition
     (namespace, view_name, display_name, is_materialized, class_namespace, class_name,
-     show_on_map, map_geometry_type, map_color, map_radius, map_dashed)
+     show_on_map, map_geometry_type, map_color, map_radius, map_dashed, sort_order)
 VALUES
-  ('ELECTRICITY', 'vw_overhead_line',        'OVERHEAD LINES',        TRUE, 'ELECTRICITY', 'OverheadLine',       TRUE, 'line',   '#EC6D26', NULL, TRUE),
-  ('ELECTRICITY', 'vw_underground_cable',    'UNDERGROUND CABLES',    TRUE, 'ELECTRICITY', 'UndergroundCable',   TRUE, 'line',   '#7B4DB5', NULL, FALSE),
-  ('ELECTRICITY', 'vw_primary_substation',   'PRIMARY SUBSTATIONS',   TRUE, 'ELECTRICITY', 'PrimarySubstation',  TRUE, 'circle', '#EC6D26', 10,   FALSE),
-  ('ELECTRICITY', 'vw_secondary_substation', 'SECONDARY SUBSTATIONS', TRUE, 'ELECTRICITY', 'SecondarySubstation',TRUE, 'circle', '#0D8C80', 8,    FALSE),
-  ('ELECTRICITY', 'vw_supports',             'SUPPORTS',              TRUE, 'ELECTRICITY', 'Support',            TRUE, 'circle', '#78909C', 4,    FALSE);
+  ('ELECTRICITY', 'vw_overhead_line',        'OVERHEAD LINES',        TRUE, 'ELECTRICITY', 'OverheadLine',       TRUE, 'line',   '#EC6D26', NULL, TRUE,  40),
+  ('ELECTRICITY', 'vw_underground_cable',    'UNDERGROUND CABLES',    TRUE, 'ELECTRICITY', 'UndergroundCable',   TRUE, 'line',   '#7B4DB5', NULL, FALSE, 80),
+  ('ELECTRICITY', 'vw_primary_substation',   'PRIMARY SUBSTATIONS',   TRUE, 'ELECTRICITY', 'PrimarySubstation',  TRUE, 'circle', '#EC6D26', 10,   FALSE, 50),
+  ('ELECTRICITY', 'vw_secondary_substation', 'SECONDARY SUBSTATIONS', TRUE, 'ELECTRICITY', 'SecondarySubstation',TRUE, 'circle', '#0D8C80', 8,    FALSE, 60),
+  ('ELECTRICITY', 'vw_supports',             'SUPPORTS',              TRUE, 'ELECTRICITY', 'Support',            TRUE, 'circle', '#78909C', 4,    FALSE, 70);
 
 -- ─── DATA DICTIONARY — VIEW COLUMN SPECS ─────────────────────────────────────
 
@@ -170,10 +170,10 @@ VALUES
 
 INSERT INTO data_dictionary.view_definition
     (namespace, view_name, display_name, is_materialized, class_namespace, class_name,
-     show_on_map, map_geometry_type, map_color, map_radius, map_dashed)
+     show_on_map, map_geometry_type, map_color, map_radius, map_dashed, sort_order)
 VALUES
   ('ELECTRICITY', 'vw_primary_zones', 'PRIMARY ZONES', TRUE, 'ELECTRICITY',
-   'PrimaryZone', TRUE, 'fill', '#0D8C80', NULL, FALSE);
+   'PrimaryZone', TRUE, 'fill', '#0D8C80', NULL, FALSE, 30);
 
 INSERT INTO data_dictionary.view_column_spec
     (namespace, view_name, source_path, alias, display_name, cast_type)

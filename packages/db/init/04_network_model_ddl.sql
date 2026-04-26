@@ -97,6 +97,7 @@ CREATE TABLE data_dictionary.view_definition (
     map_color            TEXT,                      -- Hex colour for map rendering
     map_radius           INTEGER,                   -- Circle radius (circle layers only)
     map_dashed           BOOLEAN     NOT NULL DEFAULT FALSE,
+    sort_order           INTEGER     NOT NULL DEFAULT 100,
     valid_from           TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     valid_to             TIMESTAMPTZ,
     CONSTRAINT unique_view_bitemporal UNIQUE (namespace, view_name, valid_to)

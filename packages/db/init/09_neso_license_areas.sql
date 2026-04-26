@@ -33,11 +33,11 @@ ON CONFLICT DO NOTHING;
 INSERT INTO data_dictionary.view_definition
     (namespace, view_name, display_name, is_materialized,
      class_namespace, class_name,
-     show_on_map, map_geometry_type, map_color, map_radius, map_dashed)
+     show_on_map, map_geometry_type, map_color, map_radius, map_dashed, sort_order)
 VALUES
   ('ELECTRICITY', 'vw_dno_license_zones', 'DNO LICENSE ZONES', TRUE,
    'ELECTRICITY', 'DNOLicenseZone',
-   TRUE, 'fill', '#2471A3', NULL, FALSE)
+   TRUE, 'fill', '#2471A3', NULL, FALSE, 10)
 ON CONFLICT DO NOTHING;
 
 -- view_column_spec has no unique constraint — delete before re-inserting to stay idempotent

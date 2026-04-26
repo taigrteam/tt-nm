@@ -39,7 +39,7 @@ async function getNamespaceGroups(): Promise<NamespaceGroup[]> {
       WHERE n.viewable = TRUE
         AND vd.show_on_map = TRUE
         AND vd.valid_to IS NULL
-      ORDER BY n.namespace, vd.display_name
+      ORDER BY n.namespace, vd.sort_order, vd.display_name
     `,
     sql<ColumnSpecRow[]>`
       SELECT view_name, alias, display_name

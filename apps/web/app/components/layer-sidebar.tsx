@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import { Layers, ChevronLeft, ChevronRight, ChevronDown, ChevronRight as FolderChevron, Eye, EyeOff } from "lucide-react";
 import type { NamespaceGroup } from "@/lib/map-types";
 import { saveLayerVisibility } from "@/app/actions/layer-state";
@@ -40,18 +40,31 @@ export default function LayerSidebar({ namespaces, onLayerToggle, initialVisible
   // the namespace was toggled off — restored when the namespace is toggled back on.
   const [nsSnapshot, setNsSnapshot] = useState<Record<string, Record<string, boolean>>>({});
 
+  // Explicit namespace on/off state — drives the eye icon independently of sublayer visibility.
+  // A namespace can be "on" (enabled) even when all its sublayers are off.
+  const [nsEnabled, setNsEnabled] = useState<Record<string, boolean>>(() => {
+    const visibleSet = new Set(initialVisibleLayers);
+    const init: Record<string, boolean> = {};
+    for (const ns of namespaces) {
+      init[ns.namespace] = ns.views.some((v) => visibleSet.has(v.viewName));
+    }
+    return init;
+  });
+
   function toggleLayer(viewName: string) {
     const next = !visibility[viewName];
     setVisibility((prev) => ({ ...prev, [viewName]: next }));
     onLayerToggle(viewName, next);
+    if (next) {
+      const ns = namespaces.find((n) => n.views.some((v) => v.viewName === viewName));
+      if (ns) setNsEnabled((prev) => ({ ...prev, [ns.namespace]: true }));
+    }
     startTransition(() => { saveLayerVisibility([{ viewName, visible: next }]); });
   }
 
   function toggleNamespace(ns: NamespaceGroup) {
-    const anyOn = ns.views.some((v) => visibility[v.viewName] !== false);
-
-    if (anyOn) {
-      // Save current per-layer state, then hide everything.
+    if (nsEnabled[ns.namespace]) {
+      // Turning off: save current sublayer state, hide all layers.
       const snap: Record<string, boolean> = {};
       for (const v of ns.views) snap[v.viewName] = visibility[v.viewName] !== false;
       setNsSnapshot((prev) => ({ ...prev, [ns.namespace]: snap }));
@@ -62,19 +75,21 @@ export default function LayerSidebar({ namespaces, onLayerToggle, initialVisible
         onLayerToggle(v.viewName, false);
       }
       setVisibility((prev) => ({ ...prev, ...updates }));
+      setNsEnabled((prev) => ({ ...prev, [ns.namespace]: false }));
       startTransition(() => {
         saveLayerVisibility(ns.views.map((v) => ({ viewName: v.viewName, visible: false })));
       });
     } else {
-      // Restore from snapshot; fall back to all-on if no snapshot exists.
+      // Turning on: restore sublayer state from snapshot (may be all-off); fall back to all-off.
       const snap = nsSnapshot[ns.namespace];
       const updates: Record<string, boolean> = {};
       for (const v of ns.views) {
-        const restore = snap ? (snap[v.viewName] !== false) : true;
+        const restore = snap ? (snap[v.viewName] !== false) : false;
         updates[v.viewName] = restore;
         onLayerToggle(v.viewName, restore);
       }
       setVisibility((prev) => ({ ...prev, ...updates }));
+      setNsEnabled((prev) => ({ ...prev, [ns.namespace]: true }));
       startTransition(() => {
         saveLayerVisibility(ns.views.map((v) => ({ viewName: v.viewName, visible: updates[v.viewName] })));
       });
@@ -83,6 +98,45 @@ export default function LayerSidebar({ namespaces, onLayerToggle, initialVisible
 
   function toggleFolder(namespace: string) {
     setFolderCollapsed((prev) => ({ ...prev, [namespace]: !prev[namespace] }));
+  }
+
+  // Double-click: always turn the namespace and all sublayers off, save state.
+  // Also writes an all-false snapshot so single-click re-enable restores with all layers off.
+  function forceNamespaceOff(ns: NamespaceGroup) {
+    const snap: Record<string, boolean> = {};
+    for (const v of ns.views) snap[v.viewName] = false;
+    setNsSnapshot((prev) => ({ ...prev, [ns.namespace]: snap }));
+
+    const updates: Record<string, boolean> = {};
+    for (const v of ns.views) {
+      updates[v.viewName] = false;
+      onLayerToggle(v.viewName, false);
+    }
+    setVisibility((prev) => ({ ...prev, ...updates }));
+    setNsEnabled((prev) => ({ ...prev, [ns.namespace]: false }));
+    startTransition(() => {
+      saveLayerVisibility(ns.views.map((v) => ({ viewName: v.viewName, visible: false })));
+    });
+  }
+
+  // Disambiguate single-click (toggleNamespace) from double-click (forceNamespaceAll).
+  // Browsers fire two click events before dblclick, so we delay the single-click action.
+  const nsClickTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  function handleNsEyeClick(ns: NamespaceGroup) {
+    if (nsClickTimers.current[ns.namespace]) return; // second click of a dblclick — ignore
+    nsClickTimers.current[ns.namespace] = setTimeout(() => {
+      delete nsClickTimers.current[ns.namespace];
+      toggleNamespace(ns);
+    }, 250);
+  }
+
+  function handleNsEyeDblClick(ns: NamespaceGroup) {
+    if (nsClickTimers.current[ns.namespace]) {
+      clearTimeout(nsClickTimers.current[ns.namespace]);
+      delete nsClickTimers.current[ns.namespace];
+    }
+    forceNamespaceOff(ns);
   }
 
   return (
@@ -131,7 +185,7 @@ export default function LayerSidebar({ namespaces, onLayerToggle, initialVisible
         <div className="flex flex-col overflow-y-auto flex-1">
           {namespaces.map((ns) => {
             const isFolderOpen = !folderCollapsed[ns.namespace];
-            const nsAnyOn = ns.views.some((v) => visibility[v.viewName] !== false);
+            const nsOn = nsEnabled[ns.namespace] ?? false;
             return (
               <div key={ns.namespace}>
                 {/* Folder header */}
@@ -162,14 +216,15 @@ export default function LayerSidebar({ namespaces, onLayerToggle, initialVisible
                     <span className="truncate">{ns.displayName}</span>
                   </button>
 
-                  {/* Namespace visibility toggle */}
+                  {/* Namespace visibility toggle: single-click preserves sub-layer state, double-click forces all on/off */}
                   <button
-                    onClick={() => toggleNamespace(ns)}
+                    onClick={() => handleNsEyeClick(ns)}
+                    onDoubleClick={() => handleNsEyeDblClick(ns)}
                     className="px-2 py-1.5 cursor-pointer transition-opacity hover:opacity-70"
                     style={{ background: "transparent", border: "none", flexShrink: 0 }}
-                    aria-label={nsAnyOn ? `Hide all ${ns.displayName} layers` : `Show all ${ns.displayName} layers`}
+                    aria-label={nsOn ? `Hide all ${ns.displayName} layers` : `Show all ${ns.displayName} layers`}
                   >
-                    {nsAnyOn ? (
+                    {nsOn ? (
                       <Eye size={13} style={{ color: "var(--accent)" }} />
                     ) : (
                       <EyeOff size={13} style={{ color: "var(--text-muted)" }} />
